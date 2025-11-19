@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Lookahead View – Apartment Programme</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 10px 12px;
+      background: #111827;
+      border-bottom: 1px solid #1f2937;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      flex-wrap: wrap;
+    }
+
+    header .pill {
+      background: #1f2937;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #e5e7eb;
+      text-decoration: none;
+    }
+
+    header .pill:hover {
+      background: #334155;
+    }
+
+    .logo {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      background: #1f2937;
+      padding: 12px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .filter-group label {
+      font-size: 13px;
+      color: #9ca3af;
+      font-weight: 500;
+    }
+
+    .filter-group select,
+    .filter-group input {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      background: #111827;
+      color: #e5e7eb;
+      font-size: 13px;
+    }
+
+    .filter-group button {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      background: #2563eb;
+      color: white;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .filter-group button:hover {
+      background: #1d4ed8;
+    }
+
+    .filter-group button.secondary {
+      background: #374151;
+    }
+
+    .filter-group button.secondary:hover {
+      background: #4b5563;
+    }
+
+    /* Main container */
+    .lookahead-container {
+      padding: 16px;
+      overflow: auto;
+      height: calc(100vh - 120px);
+    }
+
+    /* Grid wrapper */
+    .grid-wrapper {
+      display: flex;
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      overflow: hidden;
+      min-width: 100%;
+    }
+
+    /* Fixed columns */
+    .fixed-columns {
+      flex-shrink: 0;
+      background: #111827;
+      border-right: 2px solid #334155;
+      position: sticky;
+      left: 0;
+      z-index: 10;
+    }
+
+    /* Scrollable timeline */
+    .timeline-container {
+      flex: 1;
+      overflow-x: auto;
+      background: #0b1220;
+    }
+
+    /* Table styling */
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th {
+      background: #1f2937;
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: #9ca3af;
+      border-bottom: 1px solid #334155;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    td {
+      padding: 8px 10px;
+      font-size: 13px;
+      border-bottom: 1px solid #1f2937;
+    }
+
+    tr:hover td {
+      background: #1f2937;
+    }
+
+    /* Fixed column table widths */
+    .fixed-columns th:nth-child(1),
+    .fixed-columns td:nth-child(1) { width: 60px; text-align: center; }
+    .fixed-columns th:nth-child(2),
+    .fixed-columns td:nth-child(2) { width: 280px; }
+    .fixed-columns th:nth-child(3),
+    .fixed-columns td:nth-child(3) { width: 140px; }
+    .fixed-columns th:nth-child(4),
+    .fixed-columns td:nth-child(4) { width: 90px; }
+    .fixed-columns th:nth-child(5),
+    .fixed-columns td:nth-child(5) { width: 70px; text-align: center; }
+    .fixed-columns th:nth-child(6),
+    .fixed-columns td:nth-child(6) { width: 90px; }
+
+    /* Timeline headers */
+    .timeline-header {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 32px;
+    }
+
+    .timeline-header .month-header {
+      background: #1f2937;
+      padding: 6px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #9ca3af;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      border-right: 1px solid #1f2937;
+    }
+
+    .timeline-header .day-header {
+      background: #111827;
+      padding: 6px 4px;
+      font-size: 10px;
+      color: #6b7280;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      border-right: 1px solid #1f2937;
+    }
+
+    .timeline-header .day-header .day-num {
+      display: block;
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+
+    .timeline-header .day-header.weekend {
+      background: #0f172a;
+    }
+
+    /* Timeline rows */
+    .timeline-row {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 32px;
+      border-bottom: 1px solid #1f2937;
+    }
+
+    .timeline-row:hover {
+      background: #1f2937;
+    }
+
+    .timeline-cell {
+      height: 38px;
+      border-right: 1px solid #1f2937;
+      position: relative;
+    }
+
+    .timeline-cell.weekend {
+      background: #0f172a;
+    }
+
+    .timeline-cell .bar {
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      left: 0;
+      right: 0;
+      border-radius: 3px;
+      opacity: 0.85;
+    }
+
+    .timeline-cell .bar.planned {
+      background: #3b82f6;
+    }
+
+    .timeline-cell .bar.in_progress {
+      background: #10b981;
+      border: 2px solid #059669;
+    }
+
+    .timeline-cell .bar.complete {
+      background: #6b7280;
+    }
+
+    .timeline-cell .bar.delayed {
+      background: #ef4444;
+      border: 2px solid #dc2626;
+    }
+
+    .timeline-cell .bar.critical {
+      background: #f59e0b;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.85; }
+      50% { opacity: 1; }
+    }
+
+    /* Status badges */
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.planned {
+      background: #1e40af;
+      color: #93c5fd;
+    }
+
+    .status-badge.in_progress {
+      background: #065f46;
+      color: #6ee7b7;
+    }
+
+    .status-badge.complete {
+      background: #374151;
+      color: #9ca3af;
+    }
+
+    .status-badge.delayed {
+      background: #7f1d1d;
+      color: #fca5a5;
+    }
+
+    /* Loading/error states */
+    .message {
+      padding: 20px;
+      text-align: center;
+      color: #9ca3af;
+    }
+
+    .error {
+      color: #f87171;
+      background: #7f1d1d;
+      padding: 12px;
+      border-radius: 6px;
+      margin: 16px;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: absolute;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 12px;
+      color: #e5e7eb;
+      z-index: 1000;
+      pointer-events: none;
+      max-width: 300px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      display: none;
+    }
+
+    .tooltip.show {
+      display: block;
+    }
+
+    .tooltip .tooltip-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #93c5fd;
+    }
+
+    .tooltip .tooltip-detail {
+      margin: 3px 0;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="pill logo">Lookahead View</div>
+    <div style="flex: 1"></div>
+    <a class="pill" href="/index.html">← Gantt</a>
+    <a class="pill" href="/analytics.html">Analytics</a>
+    <a class="pill" href="/links.html">Links</a>
+    <a class="pill" href="/about.html">About</a>
+  </header>
+
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label>Block:</label>
+      <input type="text" id="filter-block" placeholder="e.g., 3 or Block 3" value="A" />
+    </div>
+    <div class="filter-group">
+      <label>Floor:</label>
+      <select id="filter-floor">
+        <option value="">All Floors</option>
+        <option value="Basement">Basement</option>
+        <option value="Ground">Ground</option>
+        <option value="1st">1st</option>
+        <option value="2nd">2nd</option>
+        <option value="3rd">3rd</option>
+        <option value="4th">4th</option>
+        <option value="5th">5th</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>From:</label>
+      <input type="date" id="filter-from" />
+    </div>
+    <div class="filter-group">
+      <label>Weeks:</label>
+      <select id="filter-weeks">
+        <option value="2">2 weeks</option>
+        <option value="4" selected>4 weeks</option>
+        <option value="6">6 weeks</option>
+        <option value="8">8 weeks</option>
+        <option value="12">12 weeks</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <button id="btn-load">Load</button>
+      <button class="secondary" id="btn-prev">← Prev Week</button>
+      <button class="secondary" id="btn-next">Next Week →</button>
+    </div>
+  </div>
+
+  <div class="lookahead-container">
+    <div id="content-area">
+      <div class="message">Click "Load" to view the lookahead grid</div>
+    </div>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    // Initialize with today's date
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('filter-from').value = today;
+
+    // API fetch and render
+    async function loadLookahead() {
+      const block = document.getElementById('filter-block').value.trim();
+      const floor = document.getElementById('filter-floor').value;
+      const from = document.getElementById('filter-from').value;
+      const weeks = document.getElementById('filter-weeks').value;
+
+      if (!from) {
+        showError('Please select a start date');
+        return;
+      }
+
+      const contentArea = document.getElementById('content-area');
+      contentArea.innerHTML = '<div class="message">Loading...</div>';
+
+      try {
+        const params = new URLSearchParams({ from, weeks });
+        if (block) params.append('block', block);
+        if (floor) params.append('floor', floor);
+
+        const response = await fetch(`/api/lookahead.php?${params}`);
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+          throw new Error(data.error || 'Failed to load data');
+        }
+
+        renderLookahead(data);
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    function showError(message) {
+      const contentArea = document.getElementById('content-area');
+      contentArea.innerHTML = `<div class="error">Error: ${message}</div>`;
+    }
+
+    function renderLookahead(data) {
+      const { days, activities } = data;
+
+      if (!activities || activities.length === 0) {
+        document.getElementById('content-area').innerHTML = 
+          '<div class="message">No activities found for this selection</div>';
+        return;
+      }
+
+      // Group days by month for header
+      const monthGroups = [];
+      let currentMonth = null;
+      let monthSpan = 0;
+
+      days.forEach(day => {
+        const monthKey = `${day.month} ${day.year}`;
+        if (monthKey !== currentMonth) {
+          if (currentMonth !== null) {
+            monthGroups.push({ label: currentMonth, span: monthSpan });
+          }
+          currentMonth = monthKey;
+          monthSpan = 1;
+        } else {
+          monthSpan++;
+        }
+      });
+      if (currentMonth !== null) {
+        monthGroups.push({ label: currentMonth, span: monthSpan });
+      }
+
+      // Build HTML
+      let html = '<div class="grid-wrapper">';
+
+      // Fixed columns
+      html += '<div class="fixed-columns">';
+      html += '<table><thead><tr>';
+      html += '<th>Seq</th>';
+      html += '<th>Activity</th>';
+      html += '<th>Subcontractor</th>';
+      html += '<th>Start</th>';
+      html += '<th>Days</th>';
+      html += '<th>Finish</th>';
+      html += '</tr></thead><tbody>';
+
+      activities.forEach(activity => {
+        html += '<tr>';
+        html += `<td>${activity.sequence}</td>`;
+        html += `<td title="${escapeHtml(activity.description)}">${escapeHtml(activity.description)}</td>`;
+        html += `<td>${escapeHtml(activity.subcontractor || '-')}</td>`;
+        html += `<td>${formatDate(activity.start_date)}</td>`;
+        html += `<td>${activity.duration_days}</td>`;
+        html += `<td>${formatDate(activity.end_date)}</td>`;
+        html += '</tr>';
+      });
+
+      html += '</tbody></table></div>';
+
+      // Timeline columns
+      html += '<div class="timeline-container">';
+      
+      // Month header
+      html += '<div class="timeline-header">';
+      monthGroups.forEach(month => {
+        html += `<div class="month-header" style="grid-column: span ${month.span}">${month.label}</div>`;
+      });
+      html += '</div>';
+
+      // Day header
+      html += '<div class="timeline-header">';
+      days.forEach(day => {
+        const isWeekend = day.day_of_week === 'Sat' || day.day_of_week === 'Sun';
+        html += `<div class="day-header ${isWeekend ? 'weekend' : ''}">`;
+        html += `<span class="day-num">${day.day}</span>`;
+        html += `<span>${day.day_of_week}</span>`;
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // Activity rows
+      activities.forEach(activity => {
+        html += '<div class="timeline-row">';
+        days.forEach(day => {
+          const isWeekend = day.day_of_week === 'Sat' || day.day_of_week === 'Sun';
+          const isActive = day.date >= activity.start_date && day.date <= activity.end_date;
+          
+          html += `<div class="timeline-cell ${isWeekend ? 'weekend' : ''}" data-activity="${activity.id}" data-date="${day.date}">`;
+          if (isActive) {
+            const barClass = activity.critical ? 'critical' : activity.status;
+            const style = activity.colour ? `background: ${activity.colour};` : '';
+            html += `<div class="bar ${barClass}" style="${style}" 
+                          data-activity-id="${activity.id}"
+                          data-activity-name="${escapeHtml(activity.description)}"
+                          data-contractor="${escapeHtml(activity.subcontractor)}"
+                          data-start="${activity.start_date}"
+                          data-end="${activity.end_date}"
+                          data-status="${activity.status}"></div>`;
+          }
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+
+      html += '</div></div>';
+
+      document.getElementById('content-area').innerHTML = html;
+
+      // Add tooltip handlers
+      setupTooltips();
+    }
+
+    function setupTooltips() {
+      const tooltip = document.getElementById('tooltip');
+      const bars = document.querySelectorAll('.bar');
+
+      bars.forEach(bar => {
+        bar.addEventListener('mouseenter', (e) => {
+          const name = bar.dataset.activityName;
+          const contractor = bar.dataset.contractor;
+          const start = formatDate(bar.dataset.start);
+          const end = formatDate(bar.dataset.end);
+          const status = bar.dataset.status;
+
+          tooltip.innerHTML = `
+            <div class="tooltip-title">${name}</div>
+            <div class="tooltip-detail"><strong>Contractor:</strong> ${contractor || '-'}</div>
+            <div class="tooltip-detail"><strong>Start:</strong> ${start}</div>
+            <div class="tooltip-detail"><strong>End:</strong> ${end}</div>
+            <div class="tooltip-detail"><strong>Status:</strong> <span class="status-badge ${status}">${status.replace('_', ' ')}</span></div>
+          `;
+
+          const rect = bar.getBoundingClientRect();
+          tooltip.style.left = (rect.left + rect.width / 2) + 'px';
+          tooltip.style.top = (rect.top - 10) + 'px';
+          tooltip.style.transform = 'translate(-50%, -100%)';
+          tooltip.classList.add('show');
+        });
+
+        bar.addEventListener('mouseleave', () => {
+          tooltip.classList.remove('show');
+        });
+      });
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      const d = new Date(dateStr + 'T00:00:00');
+      const day = d.getDate();
+      const month = d.getMonth() + 1;
+      const year = d.getFullYear();
+      return `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    function adjustDate(days) {
+      const input = document.getElementById('filter-from');
+      const currentDate = new Date(input.value + 'T00:00:00');
+      currentDate.setDate(currentDate.getDate() + days);
+      input.value = currentDate.toISOString().split('T')[0];
+      loadLookahead();
+    }
+
+    // Event listeners
+    document.getElementById('btn-load').addEventListener('click', loadLookahead);
+    document.getElementById('btn-prev').addEventListener('click', () => adjustDate(-7));
+    document.getElementById('btn-next').addEventListener('click', () => adjustDate(7));
+
+    // Load on enter in filter fields
+    document.getElementById('filter-block').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loadLookahead();
+    });
+  </script>
+</body>
+</html>
