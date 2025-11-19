@@ -13,8 +13,8 @@ spl_autoload_register(function(string $class) use ($ROOT) {
   if (is_file($fallback)) { require $fallback; return; }
 });
 
-require $ROOT . '/app/Config/DB.php';
-require $ROOT . '/app/Config/config.php';
+require $ROOT . '/app/config/DB.php';
+require $ROOT . '/app/config/config.php';
 
 @session_start();
 if (empty($_SESSION['csrf'])) $_SESSION['csrf'] = bin2hex(random_bytes(16));
