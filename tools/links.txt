@@ -1,0 +1,46 @@
+Admin & Help (pages you can click)
+Admin dashboard: https://programme.defecttracker.uk/admin/
+
+User management: https://programme.defecttracker.uk/admin/users.php
+
+Templates (snapshot/clone): https://programme.defecttracker.uk/admin/templates.php
+
+Baselines & variance: https://programme.defecttracker.uk/admin/baselines.php
+
+Health check: https://programme.defecttracker.uk/admin/health.php
+
+About / Help (end-user guide): https://programme.defecttracker.uk/about.html
+
+Sign in: https://programme.defecttracker.uk/login.html
+
+Short-term programme (PDF/HTML)
+PDF (Apartment view):
+https://programme.defecttracker.uk/api/export/shortterm.php?project=1&days=14&group=apartment
+
+PDF (Contractor view):
+https://programme.defecttracker.uk/api/export/shortterm.php?project=1&days=14&group=contractor
+
+HTML preview (switch group as needed):
+https://programme.defecttracker.uk/api/export/shortterm.php?project=1&days=14&group=apartment&format=html
+
+CSV export (Excel-friendly)
+Basic CSV (all tasks in project 1):
+https://programme.defecttracker.uk/api/export/csv.php?project=1
+
+Filtered examples:
+By block/date range →
+https://programme.defecttracker.uk/api/export/csv.php?project=1&block=A&from=2025-08-01&to=2025-09-30
+By contractor →
+https://programme.defecttracker.uk/api/export/csv.php?project=1&contractor=Panacea
+
+(Optional) API utilities
+Who am I (useful to check session):
+https://programme.defecttracker.uk/api/auth.php?action=whoami
+
+Login (POST JSON: { "email": "...", "password": "..." }):
+https://programme.defecttracker.uk/api/auth.php?action=login
+
+Logout (POST with X-CSRF):
+https://programme.defecttracker.uk/api/auth.php?action=logout
+
+Tip: add &debug=1 to API URLs if you need verbose errors while testing.

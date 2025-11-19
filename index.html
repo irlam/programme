@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Apartment Programme (MVP)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html,body {height:100%; margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:#0f172a; color:#e5e7eb;}
+    header {display:flex; gap:.75rem; align-items:center; padding:10px 12px; background:#111827; border-bottom:1px solid #1f2937; position:sticky; top:0; z-index:2;}
+    header .pill {background:#1f2937; padding:6px 10px; border-radius:999px; font-size:12px; color:#e5e7eb; text-decoration:none}
+    .legend {display:flex; gap:10px; align-items:center; margin-left:auto;}
+    .msg {padding:20px; background:#1f2937; border:1px solid #334155; border-radius:8px; color:#93c5fd;}
+    a {color:#93c5fd;}
+
+    /* Make the canvas fill the window under the header */
+    #wrap {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      top: 56px; /* corrected dynamically to header height */
+      display: flex;
+    }
+    #gantt { flex: 1; background:#0b1220; }
+
+    /* Full screen mode hides header and lifts the canvas to the very top */
+    body.fullscreen header { display: none; }
+    body.fullscreen #wrap { top: 0; }
+
+    /* Drawer */
+    #drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:9998}
+    #drawer-overlay.show{display:block}
+    #edit-drawer{position:fixed;top:0;right:-420px;width:400px;height:100vh;z-index:9999;
+      background:#0b1220;border-left:1px solid #1f2937;color:#e5e7eb;
+      box-shadow:-10px 0 30px rgba(0,0,0,.35);transition:right .25s ease}
+    #edit-drawer.open{right:0}
+    #edit-drawer header{display:flex;align-items:center;justify-content:space-between;
+      padding:12px 16px;border-bottom:1px solid #1f2937;background:#111827}
+    #edit-drawer main{padding:14px}
+    #edit-drawer label{display:block;margin:8px 0 4px 0;color:#9ca3af;font-size:13px}
+    #edit-drawer input, #edit-drawer select, #edit-drawer button{
+      width:100%;padding:8px;border-radius:8px;border:1px solid #374151;background:#111827;color:#e5e7eb}
+    #edit-drawer button#edit-save{background:#2563eb;border-color:#1d4ed8;margin-top:12px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="pill">Project: <strong style="margin-left:6px;">#1</strong></div>
+    <div class="pill">Zoom:
+      <select id="zoom" style="background:#0b1220;border:1px solid #374151;color:#e5e7eb;border-radius:8px;padding:2px 6px">
+        <option value="day">Day</option>
+        <option value="week" selected>Week</option>
+        <option value="month">Month</option>
+      </select>
+    </div>
+
+    <div class="legend" role="navigation" aria-label="Primary">
+      <a class="pill" href="/login.html">Admin Login</a>
+      <a class="pill" href="/admin/import.html">Import</a>
+      <a class="pill" href="/links.html">Site Links</a>
+      <a class="pill" href="/analytics.html">Analytics</a>
+      <a class="pill" href="/about.html">About</a>
+      <a class="pill" href="/admin/health.php">Site Health</a>
+		<!-- add after existing pills -->
+<a class="pill" href="/admin/import.html">Import</a>
+<a class="pill" href="/links.html#templates">Templates</a>
+
+
+      <!-- New quick exports -->
+      <a class="pill" href="/api/export/csv.php?project=1" title="CSV export of all tasks">CSV</a>
+      <a class="pill" href="/api/export/tasklist_xlsx.php?project=1" title="Excel task list">Tasklist .xlsx</a>
+      <a class="pill" href="/api/export/lookahead_xlsx.php?project=1&days=42&group=apartment" title="6-week lookahead grid (apartment view)">6-week .xlsx</a>
+
+      <a class="pill" id="fsToggle" href="javascript:void(0)">Full screen</a>
+    </div>
+  </header>
+
+  <div id="wrap">
+    <div id="gantt"><div class="msg" id="msg">Loading…</div></div>
+  </div>
+
+  <div id="drawer-overlay"></div>
+  <aside id="edit-drawer" aria-hidden="true">
+    <header>
+      <strong>Edit Task</strong>
+      <button type="button" id="edit-close" style="width:auto;padding:6px 10px;background:#1f2937;border:1px solid #334155">Close</button>
+    </header>
+    <main>
+      <label>Task name</label>
+      <input id="edit-name" placeholder="Task name">
+
+      <label>Contractor</label>
+      <input id="edit-contractor-name" list="contractor-list" placeholder="Start typing…">
+      <datalist id="contractor-list"></datalist>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label>Ops</label>
+          <input id="edit-ops" type="number" min="0" step="1" value="0">
+        </div>
+        <div>
+          <label>Duration (days)</label>
+          <input id="edit-duration" type="number" min="0" step="1" value="0">
+        </div>
+      </div>
+
+      <label>Zone</label>
+      <input id="edit-zone" placeholder="e.g., Bathroom">
+
+      <label>Start No Earlier Than</label>
+      <input id="edit-constraint" placeholder="dd / mm / yyyy">
+
+      <button id="edit-save">Save</button>
+    </main>
+  </aside>
+
+  <!-- Contractor autocomplete + Drawer patch (cache-busted) -->
+  <script src="/assets/js/contractor-datalist.js?v=20250813-2"></script>
+  <script src="/assets/js/drawer-contractor-patch.js?v=20250813-2"></script>
+
+  <script>
+    // --- Layout: ensure #wrap top equals header height (handles mobile/responsive) ---
+    function adjustLayout() {
+      const header = document.querySelector('header');
+      const wrap = document.getElementById('wrap');
+      if (header && wrap && !document.body.classList.contains('fullscreen')) {
+        const h = Math.ceil(header.getBoundingClientRect().height);
+        wrap.style.top = h + 'px';
+      }
+      if (window.dp) { window.dp.update(); }
+    }
+    window.addEventListener('resize', adjustLayout);
+    document.addEventListener('DOMContentLoaded', adjustLayout);
+
+    // Full screen toggle
+    (function(){
+      const fs = document.getElementById('fsToggle');
+      if (fs) fs.onclick = () => {
+        document.body.classList.toggle('fullscreen');
+        adjustLayout();
+        if (window.dp) { window.dp.update(); window.reloadGantt && window.reloadGantt(); }
+      };
+    })();
+
+    // Drawer show/hide helpers
+    function showDrawer(){ document.getElementById('edit-drawer').classList.add('open'); document.getElementById('drawer-overlay').classList.add('show'); }
+    function hideDrawer(){ document.getElementById('edit-drawer').classList.remove('open'); document.getElementById('drawer-overlay').classList.remove('show'); }
+    document.getElementById('edit-close').onclick = hideDrawer;
+    document.getElementById('drawer-overlay').onclick = hideDrawer;
+
+    // Populate contractor datalist once DOM ready
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof setupContractorDatalist === 'function') setupContractorDatalist('edit-contractor-name');
+    });
+
+    // Helpers to read event id/name
+    function getEventId(ev){
+      try {
+        if (typeof ev.id === 'function') return ev.id();
+        if (ev.data && ev.data.id) return ev.data.id;
+        if (ev.id) return ev.id;
+      } catch(_) {}
+      return null;
+    }
+    function getEventName(ev){
+      try {
+        if (typeof ev.text === 'function') return ev.text();
+        if (ev.data && (ev.data.text || ev.data.name)) return ev.data.text || ev.data.name;
+        if (ev.text) return ev.text;
+        if (ev.name) return ev.name;
+      } catch(_) {}
+      return 'Task';
+    }
+
+    // Global scheduler + reload
+    let scheduler;
+    window.reloadGantt = async function reloadGantt(){
+      if (!scheduler) return;
+      const from = scheduler.visibleStart().toString("yyyy-MM-dd");
+      const to   = scheduler.visibleEnd().toString("yyyy-MM-dd");
+      const res  = await fetch(`/api/gantt.php?project=1&from=${from}&to=${to}`);
+      const json = await res.json();
+      scheduler.update({resources: json.resources, events: json.events});
+      scheduler.scrollTo(DayPilot.Date.today());
+    };
+
+    // CSRF caching + update for drag/resize (includes NAME to satisfy API)
+    let __CSRF = null;
+    async function getCsrf(){
+      if (__CSRF) return __CSRF;
+      const who = await (await fetch('/api/auth.php?action=whoami')).json();
+      if (!who || !who.csrf) throw new Error('No CSRF token (are you logged in?)');
+      __CSRF = who.csrf;
+      return __CSRF;
+    }
+    async function updateTaskDates(id, name, startISO, finishISO){
+      const csrf = await getCsrf();
+      const body = { id, name, start_date: startISO, finish_date: finishISO };
+      const res = await fetch('/api/tasks.php?action=update', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'X-CSRF': csrf },
+        body: JSON.stringify(body)
+      });
+      const j = await res.json().catch(()=>({}));
+      if (!res.ok || !j.ok) throw new Error(j.error || 'update failed');
+    }
+
+    // Init the scheduler with taller rows + drag/resize + click-to-edit
+    window.initScheduler = function () {
+      const zoomEl = document.getElementById('zoom');
+
+      scheduler = new DayPilot.Scheduler("gantt", {
+        startDate: DayPilot.Date.today().addDays(-7),
+        days: 120,
+        scale: "Day",
+        cellWidth: 24,
+        timeHeaders: [{ groupBy: "Month", format: "MMMM yyyy" }, { groupBy: "Day", format: "d" }],
+
+        /* Bigger chart: fill parent and increase row/bar sizes */
+        heightSpec: "Parent100Pct",
+        rowMinHeight: 32,
+        eventHeight: 26,
+
+        treeEnabled: true,
+        rowHeaderColumns: [{ name: "Apartment / Zone", display: "name" }],
+
+        // interactions
+        eventClickHandling: "JavaScript",
+        eventMoveHandling: "Notify",
+        eventResizeHandling: "Notify",
+
+        onEventClick: async args => {
+          const e = args && args.e;
+          const id = e ? getEventId(e) : null;
+          if (!id) return;
+          await openTaskIntoDrawer(id);
+          showDrawer();
+        },
+
+        onEventMoved: async args => {
+          try {
+            const e = args.e;
+            const id = getEventId(e);
+            const name = getEventName(e);
+            const start = args.newStart.toString("yyyy-MM-dd");
+            const finish = args.newEnd.addDays(-1).toString("yyyy-MM-dd"); // DayPilot end is exclusive
+            await updateTaskDates(id, name, start, finish);
+            await window.reloadGantt();
+          } catch (err) { console.error(err); alert(err.message || 'Move failed'); }
+        },
+
+        onEventResized: async args => {
+          try {
+            const e = args.e;
+            const id = getEventId(e);
+            const name = getEventName(e);
+            const start = args.newStart.toString("yyyy-MM-dd");
+            const finish = args.newEnd.addDays(-1).toString("yyyy-MM-dd");
+            await updateTaskDates(id, name, start, finish);
+            await window.reloadGantt();
+          } catch (err) { console.error(err); alert(err.message || 'Resize failed'); }
+        }
+      });
+
+      // For builds that fire onEventClicked
+      scheduler.onEventClicked = async args => {
+        const e = args && args.e;
+        const id = e ? getEventId(e) : null;
+        if (!id) return;
+        await openTaskIntoDrawer(id);
+        showDrawer();
+      };
+
+      scheduler.init();
+      window.dp = scheduler;
+
+      function setZoom(val) {
+        if (val === "day")   { scheduler.scale = "Day";  scheduler.cellWidth = 30; }
+        if (val === "week")  { scheduler.scale = "Day";  scheduler.cellWidth = 18; }
+        if (val === "month") { scheduler.scale = "Week"; scheduler.cellWidth = 30; }
+        scheduler.update(); window.reloadGantt();
+      }
+      zoomEl.addEventListener('change', e => setZoom(e.target.value));
+      setZoom(zoomEl.value);
+
+      // Ensure layout is correct after init
+      adjustLayout();
+    };
+
+    // after Save from drawer patch → refresh + close
+    window.addEventListener('programme:task-saved', () => { window.reloadGantt(); hideDrawer(); });
+
+    // Load DayPilot then init
+    (function loadDaypilot(){
+      function load(src, cb){ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=cb; document.head.appendChild(s); }
+      function start(){
+        if (typeof DayPilot==='undefined' || !DayPilot.Scheduler){ console.error('DayPilot failed to load'); return; }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initScheduler);
+        else initScheduler();
+      }
+      load('/assets/js/daypilot-lite.min.js', function(){
+        if (typeof DayPilot === 'undefined') load('https://cdn.jsdelivr.net/npm/@daypilot/daypilot-lite-javascript@4.3.0/daypilot-javascript.min.js', start);
+        else start();
+      });
+    })();
+
+    // surface any top-level JS error
+    window.addEventListener('error', e => {
+      const m = document.getElementById('msg');
+      if (m) m.textContent = 'Error: ' + (e.message || 'See console');
+    });
+
+    // Force safe contractors API even if an old file was cached
+    (function(){
+      window.setupContractorDatalist = async function(inputId){
+        const inp = document.getElementById(inputId);
+        if (!inp) return;
+        let dl = document.getElementById('contractor-list');
+        if (!dl){ dl = document.createElement('datalist'); dl.id='contractor-list'; document.body.appendChild(dl); }
+        inp.setAttribute('list','contractor-list');
+        try {
+          const res = await fetch('/api/contractors.php?action=list');
+          const j = await res.json();
+          dl.innerHTML = (j.items||[]).map(r=>`<option value="${r.name}"></option>`).join('');
+        } catch(e) { console.warn('contractor list load failed', e); }
+      };
+    })();
+  </script>
+</body>
+</html>

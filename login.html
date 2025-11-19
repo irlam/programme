@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in • Programme</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0f172a;color:#e5e7eb;margin:0;display:grid;place-items:center;height:100vh}
+  .card{background:#0b1220;border:1px solid #1f2937;border-radius:12px;padding:20px;min-width:320px}
+  label{display:block;margin:10px 0 4px 0;color:#9ca3af}
+  input{width:100%;padding:10px;border-radius:8px;border:1px solid #374151;background:#111827;color:#e5e7eb}
+  button{width:100%;margin-top:14px;padding:10px;border-radius:8px;border:1px solid #1d4ed8;background:#2563eb;color:#fff}
+  .msg{margin-top:10px;height:20px}
+  a{color:#93c5fd}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h2 style="margin:0 0 8px 0">Sign in</h2>
+    <label>Email</label><input id="email" type="email" placeholder="you@company.com">
+    <label>Password</label><input id="password" type="password" placeholder="••••••••">
+    <button id="go">Sign in</button>
+    <div class="msg" id="msg"></div>
+    <div style="margin-top:8px"><a href="/about.html">About / Help</a></div>
+  </div>
+<script>
+go.onclick = async () => {
+  msg.textContent = '';
+  const body = { email: email.value.trim(), password: password.value };
+  const res = await fetch('/api/auth.php?action=login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!res.ok) { msg.textContent = 'Invalid email or password.'; return; }
+  const j = await res.json();
+  location.href = 'index.html';
+};
+</script>
+</body>
+</html>

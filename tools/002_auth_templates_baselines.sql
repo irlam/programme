@@ -1,0 +1,55 @@
+-- USERS
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  email VARCHAR(190) NOT NULL UNIQUE,
+  role ENUM('admin','planner','commenter','viewer') NOT NULL DEFAULT 'viewer',
+  password_hash VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- BASELINES
+CREATE TABLE IF NOT EXISTS baselines (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  project_id INT NOT NULL,
+  label VARCHAR(120) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX (project_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ensure baseline fields on tasks
+ALTER TABLE tasks
+  ADD COLUMN IF NOT EXISTS baseline_start DATE NULL,
+  ADD COLUMN IF NOT EXISTS baseline_finish DATE NULL;
+
+-- TEMPLATES
+CREATE TABLE IF NOT EXISTS templates (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(160) NOT NULL,
+  description TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS template_tasks (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  template_id INT NOT NULL,
+  code VARCHAR(40) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  contractor_id INT NULL,
+  operatives INT NOT NULL DEFAULT 1,
+  duration_days INT NOT NULL DEFAULT 1,
+  zone VARCHAR(120) NULL,
+  is_milestone TINYINT(1) NOT NULL DEFAULT 0,
+  UNIQUE KEY (template_id, code),
+  INDEX (template_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS template_dependencies (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  template_id INT NOT NULL,
+  task_code VARCHAR(40) NOT NULL,
+  predecessor_code VARCHAR(40) NOT NULL,
+  type ENUM('FS','SS') NOT NULL DEFAULT 'FS',
+  lag_days INT NOT NULL DEFAULT 0,
+  INDEX (template_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

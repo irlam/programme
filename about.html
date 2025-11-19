@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About • Programme</title>
+<style>
+  :root{--bg:#0f172a;--panel:#0b1220;--line:#1f2937;--muted:#9ca3af;--acc:#60a5fa;--white:#e5e7eb;}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--white);}
+  .wrap{max-width:920px;margin:0 auto;padding:24px;}
+  h1{margin:0 0 12px 0;font-size:28px}
+  h2{margin:28px 0 8px 0;font-size:20px}
+  p,li{line-height:1.55}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0}
+  code,kbd{background:#0f172a;border:1px solid var(--line);padding:2px 6px;border-radius:6px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .warn{color:#fbbf24}
+  a{color:#93c5fd}
+  ul.checks{list-style:none;padding-left:0}
+  ul.checks li::before{content:"✓";color:#22c55e;margin-right:8px}
+  .small{color:var(--muted);font-size:13px}
+  .kbd{border:1px solid var(--line);padding:2px 6px;border-radius:6px;background:#101827}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Programme – How it works</h1>
+    <div class="card">
+      <p>This tool manages apartment build sequences with automatic scheduling (working days, UK bank holidays), overlapping tasks (FS/SS with ± lag), tight handover flags, and quick exports for short-term programme packs.</p>
+      <p class="small">Timezone: Europe/London • Calendar: Mon–Fri + UK bank holidays</p>
+    </div>
+
+    <div class="card">
+      <h2>Key concepts</h2>
+      <ul class="checks">
+        <li><b>Tasks</b> have Contractor, Ops, Duration (working days), Start/Finish (calculated), optional constraint (<i>Start No Earlier Than</i>), and belong to an Apartment.</li>
+        <li><b>Dependencies</b>: Finish→Start (FS) and Start→Start (SS) with positive or negative lag (days) to allow overlaps.</li>
+        <li><b>Recalculation</b>: editing a duration, dependency, or constraint cascades through successors using working-day arithmetic.</li>
+        <li><b>Flags</b>: “Tight handover” if the gap is &lt; 1 working day; overlap warnings if two tasks collide in the same apartment/zone.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Everyday tasks</h2>
+      <div class="grid">
+        <div>
+          <h3>Add / edit tasks</h3>
+          <ol>
+            <li>Open the Gantt or table view (Planner).</li>
+            <li>Edit <i>Ops</i>, <i>Duration</i>, or add dependencies (FS/SS ± lag).</li>
+            <li>Save – dates recalculated automatically; flags update.</li>
+          </ol>
+        </div>
+        <div>
+          <h3>Short-term programme</h3>
+          <ol>
+            <li>Open <code>/api/export/shortterm.php?project=1&amp;days=14&amp;group=apartment</code>.</li>
+            <li>Switch group: <code>group=contractor</code>. Use <code>format=html</code> for a quick web version.</li>
+            <li>Print or share the generated PDF.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Templates & cloning</h2>
+      <p>Create a sequence once, then clone it to multiple apartments.</p>
+      <ol>
+        <li>Snapshot an apartment at <a href="/admin/templates.php">/admin/templates.php</a> – “Create from apartment”.</li>
+        <li>Preview tasks and dependencies; then “Clone to apartments”.</li>
+        <li>Dates will calculate from the project start and dependencies.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Baselines & variance</h2>
+      <ol>
+        <li>Capture a baseline at <a href="/admin/baselines.php">/admin/baselines.php</a>.</li>
+        <li>Variance compares current Start/Finish against the baseline in working days.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Exports</h2>
+      <ul>
+        <li>Short-term PDF (2–4 weeks): see above.</li>
+        <li>Sample block CSV: <code>/api/export/csv.php?project=1&amp;block=A&amp;from=YYYY-MM-DD&amp;to=YYYY-MM-DD</code>. Open in Excel.</li>
+      </ul>
+      <p class="small">Full Excel with compact Gantt band is planned next; for now, CSV opens cleanly in Excel.</p>
+    </div>
+
+    <div class="card">
+      <h2>Accounts & roles</h2>
+      <ul>
+        <li>First user can be created at <a href="/admin/users.php">/admin/users.php</a>. Afterwards, only Admins can create users.</li>
+        <li>Roles: Admin, Planner (edit), Commenter (view + comments), Viewer (read-only).</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Troubleshooting</h2>
+      <ul>
+        <li>Append <code>&debug=1</code> to API URLs to see detailed errors.</li>
+        <li class="warn">If PDF fails, ensure FPDF exists at <code>/app/Lib/fpdf/fpdf.php</code>.</li>
+        <li>If dates look odd, check dependencies (FS/SS) and lags.</li>
+      </ul>
+    </div>
+
+    <p class="small">Version: Build Pack 5 • UI is self-hosted, no external CDNs.</p>
+  </div>
+</body>
+</html>

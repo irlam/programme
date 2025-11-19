@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Links & Shortcuts</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bg:#0f172a; --panel:#0b1220; --line:#1f2937; --muted:#9ca3af; --accent:#93c5fd; }
+    html,body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#e5e7eb}
+    header{padding:14px 16px;background:#111827;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
+    a{color:var(--accent);text-decoration:none}
+    .pill{background:#1f2937;border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-size:12px}
+    main{max-width:1100px;margin:0 auto;padding:16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+    h2{margin:0 0 8px 0;font-size:18px}
+    p{margin:0 0 10px 0;color:#cbd5e1}
+    ul{margin:0;padding-left:16px}
+    li{margin:8px 0}
+    small{color:var(--muted)}
+    hr{border:none;border-top:1px solid var(--line);margin:16px 0}
+  </style>
+</head>
+<body>
+  <header>
+    <a class="pill" href="/">← Back to Gantt</a>
+    <span style="margin-left:auto"></span>
+    <a class="pill" href="/about.html">About / Help</a>
+  </header>
+
+  <main>
+    <div class="grid">
+      <section class="card" id="admin">
+        <h2>Admin</h2>
+        <ul>
+          <li><a href="/admin/">Admin dashboard</a> — manage data & tools</li>
+          <li><a href="/admin/users.php">User management</a> — add/edit users & roles</li>
+          <li><a href="/admin/templates.php">Templates (snapshot/clone)</a> — save & reuse sequences</li>
+          <li><a href="/admin/baselines.php">Baselines & variance</a> — capture baselines, view slippage</li>
+          <li><a href="/admin/health.php">Health check</a> — server/lib checks</li>
+          <li><a href="/admin/import.html">Import programme</a> — upload .xlsx/.csv to build the plan</li>
+        </ul>
+      </section>
+
+      <section class="card" id="templates">
+        <h2>Download Templates</h2>
+        <p>Use these to prepare data for import.</p>
+        <ul>
+          <li><a href="/api/templates/tasklist.php">Task List (XLSX)</a> — section, activity, contractor, ops, duration, deps<br>
+              <small>Save on server: <a href="/api/templates/tasklist.php?save=1">/templates/tasklist_template.xlsx</a></small></li>
+          <li><a href="/api/templates/lookahead.php">6-Week Lookahead (XLSX)</a> — section/activity + dates across the top<br>
+              <small>Start date: append <code>?base=YYYY-MM-DD</code> • Save on server: <a href="/api/templates/lookahead.php?save=1">/templates/lookahead_template.xlsx</a></small></li>
+          <li><a href="/api/templates/tasklist_csv.php">Task List (CSV)</a> — Excel-friendly alternative</li>
+        </ul>
+      </section>
+
+      <section class="card" id="shortterm">
+        <h2>Short-term Programme</h2>
+        <ul>
+          <li>PDF — Apartment view: <a href="/api/export/shortterm.php?project=1&days=14&group=apartment">link</a></li>
+          <li>PDF — Contractor view: <a href="/api/export/shortterm.php?project=1&days=14&group=contractor">link</a></li>
+          <li>HTML preview (switch group): <a href="/api/export/shortterm.php?project=1&days=14&group=apartment&format=html">link</a></li>
+        </ul>
+      </section>
+
+      <section class="card" id="exports">
+        <h2>Exports</h2>
+        <ul>
+          <li>CSV (all tasks, project 1): <a href="/api/export/csv.php?project=1">/api/export/csv.php?project=1</a></li>
+          <li>PDF Short-term (Apartment/Contractor) — see links above</li>
+        </ul>
+        <hr>
+        <p><a class="pill" href="/about.html">About / End-user guide</a></p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

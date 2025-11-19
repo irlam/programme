@@ -1,0 +1,214 @@
+<?php
+/* install_contractor_patch.php — add contractor-name support
+ * Run once, then delete this file.
+ */
+declare(strict_types=1);
+$root = dirname(__DIR__); // /httpdocs
+
+$files = [];
+
+/* ---------- /api/tasks.php ---------- */
+$files['api/tasks.php'] = <<<'PHP'
+<?php
+declare(strict_types=1);
+require __DIR__ . '/_bootstrap.php';
+
+use App\Config\DB;
+use App\Lib\Scheduler;
+
+header('Content-Type: application/json');
+$pdo = DB::pdo();
+
+$action = $_GET['action'] ?? 'get';
+$method = $_SERVER['REQUEST_METHOD'];
+
+function ok($d = []) { echo json_encode(['ok'=>true] + $d); exit; }
+function bad($msg, $code=400) { http_response_code($code); echo json_encode(['ok'=>false,'error'=>$msg]); exit; }
+
+/** GET: /api/tasks.php?action=get&id=123 */
+if ($action === 'get' && $method === 'GET') {
+  $id = (int)($_GET['id'] ?? 0);
+  if (!$id) bad('id required');
+  $st = $pdo->prepare("SELECT t.*, c.name contractor, a.block,a.floor,a.unit,a.type AS apt_type
+                       FROM tasks t
+                       LEFT JOIN contractors c ON c.id=t.contractor_id
+                       LEFT JOIN apartments a   ON a.id=t.apartment_id
+                       WHERE t.id=?");
+  $st->execute([$id]);
+  $row = $st->fetch();
+  if (!$row) bad('not found',404);
+  $row['text'] = $row['name']; // for DayPilot convenience
+  ok(['task'=>$row]);
+}
+
+/** POST JSON: /api/tasks.php?action=update
+ *  Body accepts:
+ *   - id (required)
+ *   - name OR text
+ *   - contractor_id OR contractor_name (creates contractor if not found)
+ *   - operatives, duration_days, zone
+ *   - constraint_start (Y-m-d or dd/mm/YYYY; placeholders like 'dd / mm / yyyy' ignored)
+ */
+if ($action === 'update' && $method === 'POST') {
+  require_role(['admin','planner']); csrf_check();
+
+  $b = json_decode(file_get_contents('php://input'), true) ?: [];
+  $id = (int)($b['id'] ?? 0);
+  if (!$id) bad('id required');
+
+  $name = trim((string)($b['name'] ?? ($b['text'] ?? '')));
+  if ($name === '') bad('name required');
+
+  // ---- contractor resolution ----
+  $contr = null;
+  if (isset($b['contractor_id']) && $b['contractor_id'] !== '' && is_numeric($b['contractor_id'])) {
+    $contr = (int)$b['contractor_id'];
+  } elseif (!empty($b['contractor_name'])) {
+    $cname = trim((string)$b['contractor_name']);
+    $find = $pdo->prepare("SELECT id FROM contractors WHERE LOWER(name)=LOWER(?) LIMIT 1");
+    $find->execute([$cname]);
+    $cid = $find->fetchColumn();
+    if ($cid) {
+      $contr = (int)$cid;
+    } else {
+      // create new contractor with a default colour
+      $defaultColour = '#60a5fa';
+      $ins = $pdo->prepare("INSERT INTO contractors (name, colour) VALUES (?, ?)");
+      $ins->execute([$cname, $defaultColour]);
+      $contr = (int)$pdo->lastInsertId();
+    }
+  }
+
+  $ops   = isset($b['operatives']) ? max(0, (int)$b['operatives']) : null;
+  $dur   = isset($b['duration_days']) ? max(0, (int)$b['duration_days']) : null;
+  $zone  = array_key_exists('zone', $b) ? trim((string)$b['zone']) : null;
+
+  // ---- constraint date parsing ----
+  $rawConstraint = trim((string)($b['constraint_start'] ?? ''));
+  $constraint = null;
+  if ($rawConstraint !== '' && stripos($rawConstraint, 'dd') === false) {
+    if (preg_match('~^(\\d{1,2})/(\\d{1,2})/(\\d{4})$~', $rawConstraint, $m)) {
+      $constraint = sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]);
+    } else {
+      $constraint = $rawConstraint; // assume ISO
+    }
+  }
+
+  // dynamic update
+  $set = ['name=?']; $args = [$name];
+  if ($contr !== null) { $set[]='contractor_id=?'; $args[]=$contr; }
+  if ($ops   !== null) { $set[]='operatives=?';    $args[]=$ops; }
+  if ($dur   !== null) { $set[]='duration_days=?'; $args[]=$dur; }
+  if ($zone  !== null) { $set[]='zone=?';          $args[]=$zone; }
+  if ($constraint !== null) { $set[]='constraint_start=?'; $args[]=$constraint; }
+  $args[] = $id;
+
+  $sql = "UPDATE tasks SET ".implode(',', $set)." WHERE id=?";
+  $pdo->prepare($sql)->execute($args);
+
+  // recalc project
+  $pid = (int)$pdo->query("SELECT project_id FROM tasks WHERE id=".$id)->fetchColumn();
+  if ($pid) { (new Scheduler($pid))->recalc(); }
+
+  ok(['id'=>$id]);
+}
+
+bad('unknown_action', 404);
+PHP;
+
+/* ---------- /assets/js/contractor-datalist.js ---------- */
+$files['assets/js/contractor-datalist.js'] = <<<'JS'
+// contractor-datalist helper (optional)
+// Usage: call setupContractorDatalist('edit-contractor-name');
+async function setupContractorDatalist(inputId){
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  let dl = document.getElementById('contractor-list');
+  if (!dl){ dl = document.createElement('datalist'); dl.id='contractor-list'; document.body.appendChild(dl); }
+  inp.setAttribute('list','contractor-list');
+  try {
+    const sql='SELECT name FROM contractors ORDER BY name';
+    const res = await fetch('/api/raw.php?sql='+encodeURIComponent(sql));
+    const j = await res.json();
+    dl.innerHTML = (j.rows||[]).map(r=>`<option value="${r.name}"></option>`).join('');
+  } catch(e){ console.warn('contractor list load failed', e); }
+}
+JS;
+
+/* ---------- README (optional) ---------- */
+$files['README_CONTRACTOR_NAME_PATCH.txt'] = <<<'TXT'
+PATCH • Contractor name input
+============================
+
+This patch lets you enter a contractor by NAME instead of numeric ID
+when editing a task. The API accepts either `contractor_id` or
+`contractor_name`. If a name is new, it creates the contractor and
+links the task to it.
+
+Files installed:
+- /api/tasks.php                        (NEW) update/get with contractor_name support
+- /assets/js/contractor-datalist.js     (OPTIONAL helper for a datalist input)
+
+How to wire your edit drawer:
+1) Replace the contractor field with a text input and optional datalist:
+   <label>Contractor</label>
+   <input id="edit-contractor-name" list="contractor-list" placeholder="Start typing…">
+   <datalist id="contractor-list"></datalist>
+
+2) Load the list once:
+   <script src="/assets/js/contractor-datalist.js"></script>
+   <script>setupContractorDatalist('edit-contractor-name');</script>
+
+3) When opening the drawer:
+   contractorNameInput.value = task.contractor || '';
+
+4) When saving:
+   body.contractor_name = document.getElementById('edit-contractor-name').value.trim();
+TXT;
+
+/* ---------- write ---------- */
+$results = [];
+foreach ($files as $rel => $content) {
+  $path = $root . '/' . $rel;
+  $dir  = dirname($path);
+  if (!is_dir($dir)) {
+    if (!mkdir($dir, 0775, true) && !is_dir($dir)) {
+      $results[] = [$rel, 'FAIL', 'Could not create directory'];
+      continue;
+    }
+  }
+  $ok = @file_put_contents($path, $content);
+  $results[] = [$rel, $ok!==false?'OK':'FAIL', $ok!==false?('wrote '.strlen($content).' bytes'):'write failed'];
+}
+
+/* ---------- output ---------- */
+?><!doctype html><html><head>
+<meta charset="utf-8"><title>Contractor Name Patch • Installer</title>
+<style>
+ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0f172a;color:#e5e7eb;margin:0}
+ .wrap{max-width:900px;margin:0 auto;padding:20px}
+ h1{margin:0 0 12px 0}
+ table{width:100%;border-collapse:collapse}
+ th,td{padding:8px;border-bottom:1px solid #1f2937;font-size:14px}
+ .ok{color:#86efac}.fail{color:#fca5a5}
+ a{color:#93c5fd}
+ .hint{opacity:.85}
+ code{background:#0b1220;border:1px solid #1f2937;padding:2px 6px;border-radius:6px}
+</style></head><body><div class="wrap">
+<h1>Contractor Name Patch • Installer</h1>
+<p class="hint">Root: <?=htmlspecialchars($root)?></p>
+<table><thead><tr><th>File</th><th>Status</th><th>Details</th></tr></thead><tbody>
+<?php foreach ($results as [$rel,$st,$msg]): ?>
+  <tr><td><?=htmlspecialchars($rel)?></td>
+      <td class="<?=strtolower($st)==='ok'?'ok':'fail'?>"><?=htmlspecialchars($st)?></td>
+      <td><?=htmlspecialchars($msg)?></td></tr>
+<?php endforeach; ?>
+</tbody></table>
+
+<p style="margin-top:12px">Next steps:</p>
+<ol>
+  <li>Update your edit drawer UI to use a text input for contractor and send <code>contractor_name</code> in the save request (see README).</li>
+  <li>Optional: include the datalist helper <code>/assets/js/contractor-datalist.js</code>.</li>
+  <li><b>Delete</b> this installer file for security.</li>
+</ol>
+</div></body></html>

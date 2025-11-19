@@ -1,0 +1,11 @@
+{
+  "name": "defecttracker/apartment-programme",
+  "type": "project",
+  "require": {
+    "php": "^8.1",
+    "ext-pdo": "*"
+  },
+  "autoload": {
+    "psr-4": { "App\\\": "app/" }
+  }
+}
