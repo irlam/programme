@@ -154,17 +154,27 @@ Composer configuration.
 
 ---
 
-## Conventions
+## Setup & deployment (Plesk / shared hosting)
 
-- Keep shared logic in `libs/` or `app/`, not duplicated in individual scripts.
-- Use `templates/` for all rendered HTML; avoid echoing large HTML blocks from PHP.
-- Treat `storage/uploads/` and `tmp/` as writable, environment-specific folders (do not commit real runtime data).
+### Requirements
+
+- PHP 8.x (CLI and web SAPI)
+- MySQL or MariaDB database
+- Web server (Apache / Nginx via Plesk)
+- Optional: Composer (for local development)
 
 ---
 
-*Tip for future you:*  
-If you’re unsure where to put something new, ask yourself:
+### 1. Local setup (optional but recommended)
 
-> “Is it core logic, admin-only, an API, a template, JS for the browser, a migration, or a utility script?”
+```bash
+# Clone the repository
+git clone https://github.com/irlam/programme.git
+cd programme
 
-That question usually points you to the right folder.
+# Install PHP dependencies (if used)
+composer install  # optional but recommended
+
+# Configure your local web server to serve this folder as a virtual host,
+# or use something like PHP's built-in server for simple testing:
+php -S localhost:8000
