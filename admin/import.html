@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Import Programme</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bg:#0f172a; --panel:#0b1220; --line:#1f2937; --muted:#9ca3af; --accent:#93c5fd; }
+    html,body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#e5e7eb}
+    header{padding:14px 16px;background:#111827;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
+    a{color:#93c5fd;text-decoration:none}
+    main{max-width:1100px;margin:0 auto;padding:16px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+    label{display:block;margin:8px 0 6px 0;color:#9ca3af;font-size:13px}
+    input[type="file"], select, input[type="text"], input[type="number"], input[type="date"]{
+      width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#e5e7eb}
+    .grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(220px,0.8fr);gap:22px;align-items:end}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .btn{background:#2563eb;border:1px solid #1d4ed8;color:#fff;border-radius:10px;padding:10px 12px;cursor:pointer}
+    .btn.secondary{background:#0f172a;border:1px solid #334155;color:#cbd5e1}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--line);padding:6px 8px;font-size:13px}
+    th{color:#cbd5e1;text-align:left}
+    .muted{color:#9ca3af}
+    .inline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .pill{background:#1f2937;border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-size:12px}
+    .hint{background:#0b1328;border:1px dashed #1f2a44;border-radius:10px;padding:10px;margin-top:10px;color:#a5b4fc}
+    .status{min-height:20px}
+    pre.code{background:#0b1328;border:1px solid #1f2a44;border-radius:10px;padding:10px;color:#a5b4fc;white-space:pre-wrap}
+    @media (max-width: 900px){
+      .grid{grid-template-columns:1fr;gap:14px}
+      .grid-2{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/admin/">← Admin</a>
+    <strong>Import Programme</strong>
+    <span style="margin-left:auto"></span>
+    <a class="pill" href="/links.html">Links</a>
+    <a class="pill" href="/about.html">About</a>
+  </header>
+
+  <main>
+    <!-- Templates helper -->
+    <div class="card">
+      <h3 style="margin:0 0 8px 0">Download a template</h3>
+      <p class="muted" style="margin-top:0">
+        Download a ready-to-edit file, fill it offline, then upload below. See the
+        <a href="/admin/import_guide.html">Import guide</a> for tips.
+      </p>
+      <div class="inline" style="flex-wrap:wrap">
+        <a class="btn" href="/api/templates/tasklist.php">Task List (.xlsx)</a>
+        <a class="btn" href="/api/templates/lookahead.php">6-Week Lookahead (.xlsx)</a>
+        <a class="btn secondary" href="/api/templates/tasklist_csv.php">Task List (CSV)</a>
+        <a class="pill" href="/admin/import_guide.html">How it works</a>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div class="card">
+      <h3 style="margin:0 0 8px 0">Upload file</h3>
+      <p class="muted" style="margin-top:0">
+        Accepts <strong>.xlsx</strong> (PhpSpreadsheet required) or <strong>.csv</strong>.
+        Use a simple <em>task list</em> (Task/Activity, Contractor, Start, Finish, Duration) or a <em>lookahead grid</em>.
+      </p>
+
+      <div class="grid">
+        <div>
+          <label>File (.xlsx or .csv)</label>
+          <input id="file" type="file" accept=".xlsx,.xlsm,.xls,.csv" />
+        </div>
+        <div>
+          <label>Project ID</label>
+          <input id="project" type="number" min="1" step="1" value="1" />
+        </div>
+      </div>
+
+      <!-- Assisted detection -->
+      <div class="card" style="margin-top:12px">
+        <h3 style="margin:0 0 8px 0">Assisted detection (optional)</h3>
+        <p class="muted" style="margin-top:0">
+          If the lookahead header isn’t recognised, tell the importer where the date band starts.
+          Enter the first date column letter (e.g. <strong>H</strong>) and the exact date for that column.
+          Optionally set the last column (otherwise it assumes ~6 weeks).
+        </p>
+        <div class="grid-2">
+          <div>
+            <label>First date column (e.g., H)</label>
+            <input id="assistFirstCol" placeholder="e.g., H" />
+          </div>
+          <div>
+            <label>Last date column (optional)</label>
+            <input id="assistLastCol" placeholder="e.g., BA" />
+          </div>
+          <div>
+            <label>First date on grid</label>
+            <input id="assistBaseDate" type="date" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Options -->
+      <div class="grid-2" style="margin-top:8px">
+        <div>
+          <label><input type="checkbox" id="ignoreWeekends" checked> Ignore weekends (Mon–Fri durations)</label>
+          <div class="muted">If unticked, weekend marks are imported and tasks get a 7-day calendar tag.</div>
+        </div>
+        <div>
+          <label><input type="checkbox" id="splitSpans" checked> Split non-contiguous blocks into separate tasks</label>
+          <div class="muted">Matches the visual blocks on your grid (Part 1, Part 2…).</div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:8px">
+        <div>
+          <label><input type="checkbox" id="colorContractors"> Use row colour to set contractor colour</label>
+          <div class="muted">Takes the dominant fill colour in each activity row and applies it to the contractor.</div>
+        </div>
+        <div>
+          <label><input type="checkbox" id="autoFS"> Auto-link FS within sections</label>
+          <div class="muted">Experimental: link tasks sequentially under the same section header.</div>
+        </div>
+        <div>
+          <label><input type="checkbox" id="baseline" checked> Create baseline after import</label>
+          <div class="muted">Creates “Import – timestamp” baseline so variance is meaningful.</div>
+        </div>
+      </div>
+
+      <div class="inline" style="margin-top:14px">
+        <button class="btn" id="previewBtn">Preview extraction</button>
+        <button class="btn secondary" id="debugBtn" type="button">Toggle debug</button>
+        <span id="status" class="muted status"></span>
+      </div>
+
+      <div id="debugOut" class="hint" style="display:none;margin-top:12px">
+        <strong>Debug output</strong>
+        <pre id="debugPre" class="code"></pre>
+      </div>
+
+      <div class="hint">
+        Tip: If your spreadsheet is a 6-week lookahead <em>calendar grid</em> (days across the top with coloured/filled cells),
+        and automatic detection fails, use the **Assisted detection** above (first column letter + first date).
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div id="preview" class="card" style="display:none">
+      <h3 style="margin:0 0 8px 0">Preview</h3>
+      <div id="det" class="muted"></div>
+      <div style="overflow:auto;max-height:420px;border:1px solid var(--line);border-radius:8px;margin-top:8px">
+        <table id="tbl"><thead></thead><tbody></tbody></table>
+      </div>
+      <div class="inline" style="margin-top:12px">
+        <button class="btn" id="importBtn">Import into project</button>
+        <span id="importStatus" class="muted status"></span>
+      </div>
+    </div>
+  </main>
+
+<script>
+let __preview = null;
+let __debugOn = false;
+
+document.getElementById('debugBtn').onclick = () => {
+  __debugOn = !__debugOn;
+  document.getElementById('debugOut').style.display = __debugOn ? '' : 'none';
+};
+
+document.getElementById('previewBtn').onclick = async () => {
+  const f = document.getElementById('file').files[0];
+  const status = document.getElementById('status');
+  const dbg = document.getElementById('debugPre');
+  status.textContent = '';
+  dbg.textContent = '';
+
+  if (!f) { status.textContent = 'Choose a file first.'; return; }
+
+  const fd = new FormData();
+  fd.append('file', f);
+  fd.append('project', document.getElementById('project').value || '1');
+  fd.append('ignore_weekends', document.getElementById('ignoreWeekends').checked ? '1' : '0');
+  fd.append('split_spans', document.getElementById('splitSpans').checked ? '1' : '0');
+  fd.append('auto_fs', document.getElementById('autoFS').checked ? '1' : '0');
+  fd.append('color_contractors', document.getElementById('colorContractors').checked ? '1' : '0');
+  // Assisted detection
+  fd.append('assist_first_col',  (document.getElementById('assistFirstCol').value || '').trim());
+  fd.append('assist_last_col',   (document.getElementById('assistLastCol').value  || '').trim());
+  fd.append('assist_base_date',  (document.getElementById('assistBaseDate').value || '').trim());
+
+  status.textContent = 'Uploading…';
+  const url = '/api/import/preview.php' + (__debugOn ? '?debug=1' : '');
+  let res, txt, j = null;
+  try {
+    res = await fetch(url, { method:'POST', body: fd });
+    txt = await res.text();
+    try { j = JSON.parse(txt); } catch { j = null; }
+  } catch (e) {
+    status.textContent = 'Failed: network error';
+    if (__debugOn) dbg.textContent = String(e);
+    return;
+  }
+
+  if (__debugOn) dbg.textContent = txt || '(empty response)';
+
+  if (!res.ok || !j) {
+    status.textContent = 'Failed: server error';
+    document.getElementById('preview').style.display='none';
+    return;
+  }
+  if (!j.ok) {
+    status.textContent = 'Failed: ' + (j.error || 'unsupported layout');
+    document.getElementById('preview').style.display='none';
+    return;
+  }
+
+  status.textContent = 'OK';
+  __preview = j;
+  renderPreview(j);
+};
+
+function renderPreview(j){
+  document.getElementById('preview').style.display = '';
+  const det = document.getElementById('det');
+  det.textContent = `Detected: ${j.mode} • Tasks: ${j.tasks.length} • Base date: ${j.base_date || 'n/a'} • Activity col: ${j.activity_col ?? '?'} • Contractor col: ${j.contractor_col ?? '?'}`;
+  const thead = document.querySelector('#tbl thead'); const tbody = document.querySelector('#tbl tbody');
+  thead.innerHTML = '<tr><th>Task</th><th>Contractor</th><th>Start</th><th>Finish</th><th>Duration (wd)</th><th>Section</th></tr>';
+  tbody.innerHTML = '';
+  (j.tasks||[]).slice(0,1000).forEach(t => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(t.name||'')}</td>
+                    <td>${escapeHtml(t.contractor||'')}</td>
+                    <td>${escapeHtml(t.start||'')}</td>
+                    <td>${escapeHtml(t.finish||'')}</td>
+                    <td>${t.duration_days ?? ''}</td>
+                    <td>${escapeHtml(t.section||'')}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById('importBtn').onclick = async () => {
+  const status = document.getElementById('importStatus');
+  status.textContent = 'Importing…';
+  if (!__preview) { status.textContent = 'No preview'; return; }
+
+  const payload = {
+    project: document.getElementById('project').value || '1',
+    ignore_weekends: document.getElementById('ignoreWeekends').checked,
+    split_spans: document.getElementById('splitSpans').checked,
+    auto_fs: document.getElementById('autoFS').checked,
+    baseline: document.getElementById('baseline').checked,
+    color_contractors: document.getElementById('colorContractors').checked,
+    // Assisted detection (passed through for future use)
+    assist_first_col:  (document.getElementById('assistFirstCol').value || '').trim(),
+    assist_last_col:   (document.getElementById('assistLastCol').value  || '').trim(),
+    assist_base_date:  (document.getElementById('assistBaseDate').value || '').trim(),
+    // Preview contents
+    tasks: __preview.tasks,
+    mode: __preview.mode,
+    base_date: __preview.base_date,
+    mapping: __preview.mapping || {}
+  };
+
+  try {
+    const who = await (await fetch('/api/auth.php?action=whoami')).json();
+    const res = await fetch('/api/import/commit.php', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRF':who.csrf},
+      body: JSON.stringify(payload)
+    });
+    const j = await res.json().catch(()=>null);
+    if (!res.ok || !j || !j.ok) {
+      status.textContent = 'Failed: ' + (j && j.error ? j.error : 'server error');
+      return;
+    }
+    status.innerHTML = 'Imported. <a href="/">Open Gantt</a>';
+  } catch (e) {
+    status.textContent = 'Failed: ' + String(e);
+  }
+};
+
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+</script>
+</body>
+</html>

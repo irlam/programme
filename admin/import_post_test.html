@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Import POST Test</title>
+<body style="font-family:system-ui">
+<h2>Import POST Test</h2>
+<p>Select a file and post directly to the preview endpoint (debug on):</p>
+<form id="f" enctype="multipart/form-data">
+  <input type="file" name="file" accept=".xlsx,.xlsm,.xls,.csv"><br><br>
+  <label><input type="checkbox" name="ignore_weekends" value="1" checked> ignore_weekends</label><br>
+  <label><input type="checkbox" name="split_spans" value="1" checked> split_spans</label><br>
+  <label><input type="checkbox" name="auto_fs" value="1"> auto_fs</label><br>
+  <label><input type="checkbox" name="color_contractors" value="1"> color_contractors</label><br><br>
+  <button>POST to /api/import/preview.php?debug=1</button>
+</form>
+<pre id="out" style="background:#111;color:#9cf;padding:10px;border-radius:8px;max-width:900px;white-space:pre-wrap"></pre>
+<script>
+document.getElementById('f').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const res = await fetch('/api/import/preview.php?debug=1', { method:'POST', body: fd });
+  const txt = await res.text();
+  document.getElementById('out').textContent = txt;
+});
+</script>

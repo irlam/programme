@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Import Guide & Templates</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bg:#0f172a; --panel:#0b1220; --line:#1f2937; --muted:#9ca3af; --accent:#93c5fd; }
+    html,body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#e5e7eb}
+    header{padding:14px 16px;background:#111827;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
+    main{max-width:1100px;margin:0 auto;padding:16px}
+    a{color:var(--accent);text-decoration:none}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+    .muted{color:var(--muted)}
+    .pill{background:#1f2937;border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-size:12px}
+    code{background:#111827;padding:2px 6px;border-radius:4px}
+    ul{margin-top:6px}
+  </style>
+</head>
+<body>
+<header>
+  <a href="/admin/import.html" class="pill">← Back to Import</a>
+  <strong>Import guide & templates</strong>
+  <span style="margin-left:auto"></span>
+  <a class="pill" href="/links.html">Links</a>
+  <a class="pill" href="/about.html">Help</a>
+</header>
+<main>
+  <p class="muted">Two easy ways to prepare files: a simple <strong>Task List</strong> (universal) or a <strong>6-Week Lookahead</strong> grid. Download a template, edit offline, then upload on the Import page.</p>
+
+  <h2>Download templates</h2>
+  <div class="grid">
+    <div class="card">
+      <h3><a href="/api/templates/tasklist.php">Task List (.xlsx)</a></h3>
+      <p class="muted">Best for most use cases. One row per task with optional dependencies (FS/SS + lag).</p>
+      <ul class="muted">
+        <li>Columns: Block, Floor, Unit, Type, Task, Contractor, Ops, Duration (wd), Start, Finish, Zone, Predecessor, LinkType, LagDays, SNET, Notes.</li>
+        <li>Dates: <code>dd/mm/yyyy</code> or <code>yyyy-mm-dd</code>. Duration is working days.</li>
+        <li>Leave Start or Finish blank — the importer will compute from Duration where possible.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><a href="/api/templates/lookahead.php">6-Week Lookahead (.xlsx)</a></h3>
+      <p class="muted">Calendar grid view. Set the start date, then mark active day cells with “x”.</p>
+      <ul class="muted">
+        <li>Safer than conditional formatting: put a small value in each active cell.</li>
+        <li>Importer reads rows and turns day runs into tasks with real dates.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><a href="/api/templates/tasklist_csv.php">Task List (CSV)</a></h3>
+      <p class="muted">Spreadsheet-agnostic format. Same columns as the XLSX task list.</p>
+    </div>
+  </div>
+
+  <h2 style="margin-top:18px">What other files will work?</h2>
+  <div class="card">
+    <p class="muted">Any XLSX/CSV that has a row-based task table will import. The importer recognises common headers and synonyms, e.g.:</p>
+    <ul class="muted">
+      <li><strong>Task</strong> (a.k.a Activity, Description)</li>
+      <li><strong>Contractor</strong> (a.k.a Trade, Vendor)</li>
+      <li><strong>Start</strong> (Start Date), <strong>Finish</strong> (End), <strong>Duration</strong> (wd)</li>
+      <li><strong>Ops</strong> (Headcount), <strong>Zone</strong> (Area), <strong>Block/Floor/Unit/Type</strong></li>
+      <li><strong>Dependencies</strong>: Predecessor, LinkType (FS/SS), LagDays (±)</li>
+    </ul>
+    <p class="muted">If headers are unusual, the preview will offer a quick column mapping step (you can save the mapping for next time).</p>
+  </div>
+
+  <h2 style="margin-top:18px">Round-trip editing</h2>
+  <div class="card">
+    <ul class="muted">
+      <li>Export <em>Task list (.xlsx)</em> from the Gantt, edit offline, then import — rows with an <strong>ID</strong> update; rows without an ID insert.</li>
+      <li>Optionally capture a baseline during import to track slippage in the Variance view.</li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>
