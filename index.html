@@ -1,326 +1,40 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Apartment Programme (MVP)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    html,body {height:100%; margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:#0f172a; color:#e5e7eb;}
-    header {display:flex; gap:.75rem; align-items:center; padding:10px 12px; background:#111827; border-bottom:1px solid #1f2937; position:sticky; top:0; z-index:2;}
-    header .pill {background:#1f2937; padding:6px 10px; border-radius:999px; font-size:12px; color:#e5e7eb; text-decoration:none}
-    .legend {display:flex; gap:10px; align-items:center; margin-left:auto;}
-    .msg {padding:20px; background:#1f2937; border:1px solid #334155; border-radius:8px; color:#93c5fd;}
-    a {color:#93c5fd;}
-
-    /* Make the canvas fill the window under the header */
-    #wrap {
-      position: fixed;
-      left: 0; right: 0; bottom: 0;
-      top: 56px; /* corrected dynamically to header height */
-      display: flex;
-    }
-    #gantt { flex: 1; background:#0b1220; }
-
-    /* Full screen mode hides header and lifts the canvas to the very top */
-    body.fullscreen header { display: none; }
-    body.fullscreen #wrap { top: 0; }
-
-    /* Drawer */
-    #drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:9998}
-    #drawer-overlay.show{display:block}
-    #edit-drawer{position:fixed;top:0;right:-420px;width:400px;height:100vh;z-index:9999;
-      background:#0b1220;border-left:1px solid #1f2937;color:#e5e7eb;
-      box-shadow:-10px 0 30px rgba(0,0,0,.35);transition:right .25s ease}
-    #edit-drawer.open{right:0}
-    #edit-drawer header{display:flex;align-items:center;justify-content:space-between;
-      padding:12px 16px;border-bottom:1px solid #1f2937;background:#111827}
-    #edit-drawer main{padding:14px}
-    #edit-drawer label{display:block;margin:8px 0 4px 0;color:#9ca3af;font-size:13px}
-    #edit-drawer input, #edit-drawer select, #edit-drawer button{
-      width:100%;padding:8px;border-radius:8px;border:1px solid #374151;background:#111827;color:#e5e7eb}
-    #edit-drawer button#edit-save{background:#2563eb;border-color:#1d4ed8;margin-top:12px}
-  </style>
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#122c28"><meta name="description" content="Plan, coordinate and track your construction programme."><title>Programme · DefectTracker</title><link rel="icon" href="/assets/programme-mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/css/workspace.css?v=20261005"><script src="/assets/js/workspace.js?v=20261005" defer></script></head>
 <body>
-  <header>
-    <div class="pill">Project: <strong style="margin-left:6px;">#1</strong></div>
-    <div class="pill">Zoom:
-      <select id="zoom" style="background:#0b1220;border:1px solid #374151;color:#e5e7eb;border-radius:8px;padding:2px 6px">
-        <option value="day">Day</option>
-        <option value="week" selected>Week</option>
-        <option value="month">Month</option>
-      </select>
-    </div>
-
-    <div class="legend" role="navigation" aria-label="Primary">
-      <a class="pill" href="/lookahead.html">Lookahead</a>
-      <a class="pill" href="/login.html">Admin Login</a>
-      <a class="pill" href="/admin/import.html">Import</a>
-      <a class="pill" href="/links.html">Site Links</a>
-      <a class="pill" href="/analytics.html">Analytics</a>
-      <a class="pill" href="/about.html">About</a>
-      <a class="pill" href="/admin/health.php">Site Health</a>
-
-
-      <!-- New quick exports -->
-      <a class="pill" href="/api/export/csv.php?project=1" title="CSV export of all tasks">CSV</a>
-      <a class="pill" href="/api/export/tasklist_xlsx.php?project=1" title="Excel task list">Tasklist .xlsx</a>
-      <a class="pill" href="/api/export/lookahead_xlsx.php?project=1&days=42&group=apartment" title="6-week lookahead grid (apartment view)">6-week .xlsx</a>
-
-      <a class="pill" id="fsToggle" href="javascript:void(0)">Full screen</a>
-    </div>
-  </header>
-
-  <div id="wrap">
-    <div id="gantt"><div class="msg" id="msg">Loading…</div></div>
-  </div>
-
-  <div id="drawer-overlay"></div>
-  <aside id="edit-drawer" aria-hidden="true">
-    <header>
-      <strong>Edit Task</strong>
-      <button type="button" id="edit-close" style="width:auto;padding:6px 10px;background:#1f2937;border:1px solid #334155">Close</button>
-    </header>
-    <main>
-      <label>Task name</label>
-      <input id="edit-name" placeholder="Task name">
-
-      <label>Contractor</label>
-      <input id="edit-contractor-name" list="contractor-list" placeholder="Start typing…">
-      <datalist id="contractor-list"></datalist>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div>
-          <label>Ops</label>
-          <input id="edit-ops" type="number" min="0" step="1" value="0">
-        </div>
-        <div>
-          <label>Duration (days)</label>
-          <input id="edit-duration" type="number" min="0" step="1" value="0">
-        </div>
-      </div>
-
-      <label>Zone</label>
-      <input id="edit-zone" placeholder="e.g., Bathroom">
-
-      <label>Start No Earlier Than</label>
-      <input id="edit-constraint" placeholder="dd / mm / yyyy">
-
-      <button id="edit-save">Save</button>
-    </main>
-  </aside>
-
-  <!-- Contractor autocomplete + Drawer patch (cache-busted) -->
-  <script src="/assets/js/contractor-datalist.js?v=20250813-2"></script>
-  <script src="/assets/js/drawer-contractor-patch.js?v=20250813-2"></script>
-
-  <script>
-    // --- Layout: ensure #wrap top equals header height (handles mobile/responsive) ---
-    function adjustLayout() {
-      const header = document.querySelector('header');
-      const wrap = document.getElementById('wrap');
-      if (header && wrap && !document.body.classList.contains('fullscreen')) {
-        const h = Math.ceil(header.getBoundingClientRect().height);
-        wrap.style.top = h + 'px';
-      }
-      if (window.dp) { window.dp.update(); }
-    }
-    window.addEventListener('resize', adjustLayout);
-    document.addEventListener('DOMContentLoaded', adjustLayout);
-
-    // Full screen toggle
-    (function(){
-      const fs = document.getElementById('fsToggle');
-      if (fs) fs.onclick = () => {
-        document.body.classList.toggle('fullscreen');
-        adjustLayout();
-        if (window.dp) { window.dp.update(); window.reloadGantt && window.reloadGantt(); }
-      };
-    })();
-
-    // Drawer show/hide helpers
-    function showDrawer(){ document.getElementById('edit-drawer').classList.add('open'); document.getElementById('drawer-overlay').classList.add('show'); }
-    function hideDrawer(){ document.getElementById('edit-drawer').classList.remove('open'); document.getElementById('drawer-overlay').classList.remove('show'); }
-    document.getElementById('edit-close').onclick = hideDrawer;
-    document.getElementById('drawer-overlay').onclick = hideDrawer;
-
-    // Populate contractor datalist once DOM ready
-    document.addEventListener('DOMContentLoaded', () => {
-      if (typeof setupContractorDatalist === 'function') setupContractorDatalist('edit-contractor-name');
-    });
-
-    // Helpers to read event id/name
-    function getEventId(ev){
-      try {
-        if (typeof ev.id === 'function') return ev.id();
-        if (ev.data && ev.data.id) return ev.data.id;
-        if (ev.id) return ev.id;
-      } catch(_) {}
-      return null;
-    }
-    function getEventName(ev){
-      try {
-        if (typeof ev.text === 'function') return ev.text();
-        if (ev.data && (ev.data.text || ev.data.name)) return ev.data.text || ev.data.name;
-        if (ev.text) return ev.text;
-        if (ev.name) return ev.name;
-      } catch(_) {}
-      return 'Task';
-    }
-
-    // Global scheduler + reload
-    let scheduler;
-    window.reloadGantt = async function reloadGantt(){
-      if (!scheduler) return;
-      const from = scheduler.visibleStart().toString("yyyy-MM-dd");
-      const to   = scheduler.visibleEnd().toString("yyyy-MM-dd");
-      const res  = await fetch(`/api/gantt.php?project=1&from=${from}&to=${to}`);
-      const json = await res.json();
-      scheduler.update({resources: json.resources, events: json.events});
-      scheduler.scrollTo(DayPilot.Date.today());
-    };
-
-    // CSRF caching + update for drag/resize (includes NAME to satisfy API)
-    let __CSRF = null;
-    async function getCsrf(){
-      if (__CSRF) return __CSRF;
-      const who = await (await fetch('/api/auth.php?action=whoami')).json();
-      if (!who || !who.csrf) throw new Error('No CSRF token (are you logged in?)');
-      __CSRF = who.csrf;
-      return __CSRF;
-    }
-    async function updateTaskDates(id, name, startISO, finishISO){
-      const csrf = await getCsrf();
-      const body = { id, name, start_date: startISO, finish_date: finishISO };
-      const res = await fetch('/api/tasks.php?action=update', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json', 'X-CSRF': csrf },
-        body: JSON.stringify(body)
-      });
-      const j = await res.json().catch(()=>({}));
-      if (!res.ok || !j.ok) throw new Error(j.error || 'update failed');
-    }
-
-    // Init the scheduler with taller rows + drag/resize + click-to-edit
-    window.initScheduler = function () {
-      const zoomEl = document.getElementById('zoom');
-
-      scheduler = new DayPilot.Scheduler("gantt", {
-        startDate: DayPilot.Date.today().addDays(-7),
-        days: 120,
-        scale: "Day",
-        cellWidth: 24,
-        timeHeaders: [{ groupBy: "Month", format: "MMMM yyyy" }, { groupBy: "Day", format: "d" }],
-
-        /* Bigger chart: fill parent and increase row/bar sizes */
-        heightSpec: "Parent100Pct",
-        rowMinHeight: 32,
-        eventHeight: 26,
-
-        treeEnabled: true,
-        rowHeaderColumns: [{ name: "Apartment / Zone", display: "name" }],
-
-        // interactions
-        eventClickHandling: "JavaScript",
-        eventMoveHandling: "Notify",
-        eventResizeHandling: "Notify",
-
-        onEventClick: async args => {
-          const e = args && args.e;
-          const id = e ? getEventId(e) : null;
-          if (!id) return;
-          await openTaskIntoDrawer(id);
-          showDrawer();
-        },
-
-        onEventMoved: async args => {
-          try {
-            const e = args.e;
-            const id = getEventId(e);
-            const name = getEventName(e);
-            const start = args.newStart.toString("yyyy-MM-dd");
-            const finish = args.newEnd.addDays(-1).toString("yyyy-MM-dd"); // DayPilot end is exclusive
-            await updateTaskDates(id, name, start, finish);
-            await window.reloadGantt();
-          } catch (err) { console.error(err); alert(err.message || 'Move failed'); }
-        },
-
-        onEventResized: async args => {
-          try {
-            const e = args.e;
-            const id = getEventId(e);
-            const name = getEventName(e);
-            const start = args.newStart.toString("yyyy-MM-dd");
-            const finish = args.newEnd.addDays(-1).toString("yyyy-MM-dd");
-            await updateTaskDates(id, name, start, finish);
-            await window.reloadGantt();
-          } catch (err) { console.error(err); alert(err.message || 'Resize failed'); }
-        }
-      });
-
-      // For builds that fire onEventClicked
-      scheduler.onEventClicked = async args => {
-        const e = args && args.e;
-        const id = e ? getEventId(e) : null;
-        if (!id) return;
-        await openTaskIntoDrawer(id);
-        showDrawer();
-      };
-
-      scheduler.init();
-      window.dp = scheduler;
-
-      function setZoom(val) {
-        if (val === "day")   { scheduler.scale = "Day";  scheduler.cellWidth = 30; }
-        if (val === "week")  { scheduler.scale = "Day";  scheduler.cellWidth = 18; }
-        if (val === "month") { scheduler.scale = "Week"; scheduler.cellWidth = 30; }
-        scheduler.update(); window.reloadGantt();
-      }
-      zoomEl.addEventListener('change', e => setZoom(e.target.value));
-      setZoom(zoomEl.value);
-
-      // Ensure layout is correct after init
-      adjustLayout();
-    };
-
-    // after Save from drawer patch → refresh + close
-    window.addEventListener('programme:task-saved', () => { window.reloadGantt(); hideDrawer(); });
-
-    // Load DayPilot then init
-    (function loadDaypilot(){
-      function load(src, cb){ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=cb; document.head.appendChild(s); }
-      function start(){
-        if (typeof DayPilot==='undefined' || !DayPilot.Scheduler){ console.error('DayPilot failed to load'); return; }
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initScheduler);
-        else initScheduler();
-      }
-      load('/assets/js/daypilot-lite.min.js', function(){
-        if (typeof DayPilot === 'undefined') load('https://cdn.jsdelivr.net/npm/@daypilot/daypilot-lite-javascript@4.3.0/daypilot-javascript.min.js', start);
-        else start();
-      });
-    })();
-
-    // surface any top-level JS error
-    window.addEventListener('error', e => {
-      const m = document.getElementById('msg');
-      if (m) m.textContent = 'Error: ' + (e.message || 'See console');
-    });
-
-    // Force safe contractors API even if an old file was cached
-    (function(){
-      window.setupContractorDatalist = async function(inputId){
-        const inp = document.getElementById(inputId);
-        if (!inp) return;
-        let dl = document.getElementById('contractor-list');
-        if (!dl){ dl = document.createElement('datalist'); dl.id='contractor-list'; document.body.appendChild(dl); }
-        inp.setAttribute('list','contractor-list');
-        try {
-          const res = await fetch('/api/contractors.php?action=list');
-          const j = await res.json();
-          dl.innerHTML = (j.items||[]).map(r=>`<option value="${r.name}"></option>`).join('');
-        } catch(e) { console.warn('contractor list load failed', e); }
-      };
-    })();
-  </script>
-</body>
-</html>
+<a href="#workspace" class="btn" style="position:absolute;left:-9999px" onfocus="this.style.left='16px'" onblur="this.style.left='-9999px'">Skip to programme</a>
+<div class="menu-backdrop" id="menu-backdrop"></div>
+<aside class="sidebar" aria-label="Main navigation">
+<a href="/" class="brand"><img src="/assets/programme-mark.svg" alt=""><span>Programme<small>DefectTracker suite</small></span></a>
+<div class="nav-label">Workspace</div><nav>
+<a href="/index.html" data-nav="timeline"><span class="nav-icon" aria-hidden="true">▤</span> Programme</a>
+<a href="/lookahead.html" data-nav="lookahead"><span class="nav-icon" aria-hidden="true">▦</span> Lookahead</a>
+<a href="/analytics.html"><span class="nav-icon" aria-hidden="true">▥</span> Analytics</a>
+<a href="/admin/import.html"><span class="nav-icon" aria-hidden="true">↥</span> Import programme</a>
+</nav><div class="nav-label">Project controls</div><nav>
+<a href="/admin/baselines.php"><span class="nav-icon" aria-hidden="true">◎</span> Baselines & variance</a>
+<a href="/admin/holidays.php"><span class="nav-icon" aria-hidden="true">□</span> Working calendar</a>
+<a href="/admin/templates.php"><span class="nav-icon" aria-hidden="true">▧</span> Templates</a>
+<a href="/admin/users.php"><span class="nav-icon" aria-hidden="true">♧</span> Team & access</a>
+</nav><div class="sidebar-foot">Built for the working day.<br><a href="/about.html">Help & guidance ↗</a><br><a href="/links.html">All tools & exports ↗</a></div>
+</aside>
+<div class="app"><header class="topbar"><div class="breadcrumb"><button class="menu-toggle" id="menu-toggle" aria-label="Open navigation" aria-expanded="false">☰</button><span>Workspace</span><span>/</span><b id="breadcrumb-title">Construction programme</b></div><div class="account"><span class="connection" id="connection"><i></i>Connecting</span><span class="avatar" id="avatar">P</span><a id="account-link" href="/login.html">Sign in</a><button id="logout" hidden>Sign out</button></div></header>
+<main class="page">
+<div class="heading"><div><div class="eyebrow">A clearer plan. A better handover.</div><h1 id="page-title">Your programme, in focus.</h1><p id="project-subtitle">One place to coordinate your trades, dates and progress.</p></div><div class="heading-actions"><select id="project" class="project-select" aria-label="Project"><option value="1">Loading project…</option></select><a class="btn primary" href="/admin/import.html">↥ Import programme</a></div></div>
+<section class="stats" aria-label="Project summary">
+<button class="stat" id="stat-all" title="Show all tasks"><span class="stat-label">Programme activities <span class="stat-icon" aria-hidden="true">▤</span></span><span class="stat-value" id="stat-total">—</span><span class="stat-detail" id="stat-total-detail">Across the whole project</span></button>
+<button class="stat" id="stat-progress" title="Show completed tasks"><span class="stat-label">Overall progress <span class="stat-icon" aria-hidden="true">◎</span></span><span class="stat-value" id="stat-percent">—</span><span class="stat-detail" id="stat-progress-detail">Average task completion</span><span class="progress-track"><span id="overall-progress"></span></span></button>
+<button class="stat" id="stat-active" title="Show tasks scheduled for today"><span class="stat-label">Scheduled today <span class="stat-icon" aria-hidden="true">↗</span></span><span class="stat-value" id="stat-running">—</span><span class="stat-detail" id="stat-workforce">Planned operatives today</span></button>
+<button class="stat warning" id="stat-delayed" title="Show overdue tasks"><span class="stat-label">Needs attention <span class="stat-icon" aria-hidden="true">!</span></span><span class="stat-value" id="stat-overdue">—</span><span class="stat-detail">Past finish date & still incomplete</span></button>
+</section>
+<section class="workspace" id="workspace" aria-label="Programme workspace"><div class="workspace-head"><div><h2 id="workspace-title">Programme timeline</h2><small id="workspace-description">The detail you need. The bigger picture you want.</small></div><div style="display:flex;gap:8px;align-items:center"><div class="segments" role="group" aria-label="Programme view"><button data-view="timeline" class="active" aria-pressed="true">Timeline</button><button data-view="list" aria-pressed="false">Task list</button><button data-view="lookahead" aria-pressed="false">Lookahead</button></div><details class="exports"><summary class="btn">Export ↓</summary><div class="export-menu"><a data-export="csv" href="/api/export/csv.php?project=1">All tasks · CSV</a><a data-export="tasklist" href="/api/export/tasklist_xlsx.php?project=1">All tasks · Excel</a><a data-export="lookahead" href="/api/export/lookahead_xlsx.php?project=1">Current date window · Excel</a><a data-export="shortterm" href="/api/export/shortterm.php?project=1">Current date window · PDF</a><a href="#" id="print">Print current view</a></div></details></div></div>
+<div class="filters"><input type="search" id="search" aria-label="Search activities" placeholder="⌕  Search activity, trade or location"><select id="block" aria-label="Block"><option value="">All blocks</option></select><select id="floor" aria-label="Floor"><option value="">All floors</option></select><select id="contractor" aria-label="Contractor"><option value="">All contractors</option></select><select id="status" aria-label="Status"><option value="">All statuses</option><option value="planned">Planned</option><option value="in_progress">Scheduled today</option><option value="delayed">Overdue</option><option value="complete">Complete</option><option value="unscheduled">Unscheduled</option></select><button id="clear-filters">Reset</button></div>
+<div class="toolbar"><div class="controls"><button id="previous" aria-label="Previous date window">←</button><span class="date-label" id="date-label">Loading dates…</span><button id="next" aria-label="Next date window">→</button><button id="today">Today</button><button id="fit">Programme start</button><input type="date" id="from" aria-label="Window start date"><select id="window" aria-label="Date window"><option value="14">2 weeks</option><option value="28">4 weeks</option><option value="42" selected>6 weeks</option><option value="56">8 weeks</option><option value="84">12 weeks</option></select><select id="zoom" aria-label="Timeline zoom"><option value="18">Compact</option><option value="30" selected>Standard</option><option value="46">Detailed</option></select><select id="group" aria-label="Group activities"><option value="location">By location</option><option value="contractor">By contractor</option></select></div><div class="controls"><label class="toggle"><input id="baseline" type="checkbox"> Baseline</label><button id="refresh" title="Refresh programme">↻ Refresh</button><button id="focus">⛶ Focus</button><button class="focus-exit" id="focus-exit">Exit focus</button></div></div>
+<div id="content" aria-busy="true"><div class="loading-line"></div><div class="empty"><div><h3>Loading your programme</h3><p>Bringing your activities and dates together.</p></div></div></div>
+<div class="workspace-foot"><div class="legend"><span><i class="dot planned"></i>Planned</span><span><i class="dot in_progress"></i>Scheduled today</span><span><i class="dot delayed"></i>Overdue</span><span><i class="dot complete"></i>Complete</span></div><span id="results">Loading activities…</span><span id="edit-hint">Click an activity to see the detail</span></div></section>
+<div class="footer"><span id="updated">Programme workspace</span><span>DefectTracker / Programme</span></div>
+</main></div>
+<dialog class="task-dialog" id="task-dialog" aria-labelledby="task-dialog-title"><form id="task-form"><div class="dialog-head"><div><div class="eyebrow" id="task-location">Activity details</div><h2 id="task-dialog-title">Activity details</h2></div><button type="button" id="close-task" aria-label="Close activity">✕</button></div><div class="dialog-body"><span id="task-status" class="badge"></span><p class="muted" id="task-dates" style="font-size:12px;margin-top:10px"></p><label for="edit-name">Activity name</label><input id="edit-name" required maxlength="190"><label for="edit-contractor">Contractor</label><input id="edit-contractor" list="contractor-options" maxlength="120"><datalist id="contractor-options"></datalist><div class="form-grid"><div><label for="edit-ops">Planned operatives</label><input id="edit-ops" type="number" min="0" step="1" required></div><div><label for="edit-duration">Duration · working days</label><input id="edit-duration" type="number" min="0" step="1" required></div></div><div class="form-grid"><div><label for="edit-zone">Zone / work area</label><input id="edit-zone" maxlength="80"></div><div><label for="edit-progress">Progress · % complete</label><input id="edit-progress" type="number" min="0" max="100" step="1" required></div></div><label for="edit-constraint">Start no earlier than</label><input id="edit-constraint" type="date"><div class="notice" id="task-alerts"></div><div class="notice" id="edit-notice">Dates are recalculated using project dependencies and the working calendar.</div><div class="form-error" id="form-error" role="alert"></div></div><div class="dialog-foot"><button type="button" id="cancel-task">Close</button><button type="submit" class="primary" id="save-task">Save changes</button></div></form></dialog>
+<dialog class="task-dialog" id="move-dialog" aria-labelledby="move-title"><div class="dialog-head"><h2 id="move-title">Confirm programme change</h2></div><div class="dialog-body"><p id="move-description"></p><div class="notice">The scheduler will recalculate dates for linked activities. Working days and dependencies may affect the final dates.</div><div class="form-error" id="move-error" role="alert"></div></div><div class="dialog-foot"><button id="cancel-move">Cancel</button><button class="primary" id="confirm-move">Apply change</button></div></dialog>
+<div class="toast" id="toast" role="status" hidden></div>
+</body></html>

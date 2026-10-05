@@ -15,6 +15,7 @@ declare(strict_types=1);
   input,button{padding:8px;border-radius:6px;border:1px solid #374151;background:#111827;color:#e5e7eb}
   button{background:#2563eb;border-color:#1d4ed8}
 </style>
+<link rel="icon" href="/assets/programme-mark.svg"><link rel="stylesheet" href="/assets/css/workspace.css?v=20261005"><link rel="stylesheet" href="/assets/css/chrome.css?v=20261005"><script src="/assets/js/chrome.js?v=20261005" defer></script>
 </head>
 <body>
 <header>

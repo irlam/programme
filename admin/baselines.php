@@ -37,6 +37,7 @@
   .bl-hint {font-size:12px; color:#9ca3af; margin-top:8px}
   .bl-hidden {display:none}
 </style>
+<link rel="icon" href="/assets/programme-mark.svg"><link rel="stylesheet" href="/assets/css/workspace.css?v=20261005"><link rel="stylesheet" href="/assets/css/chrome.css?v=20261005"><script src="/assets/js/chrome.js?v=20261005" defer></script>
 </head>
 <body>
 <header>

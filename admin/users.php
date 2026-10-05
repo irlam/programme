@@ -11,7 +11,8 @@
   table{width:100%;border-collapse:collapse;margin-top:14px}
   th,td{padding:8px;border-bottom:1px solid #1f2937;font-size:14px}
   a{color:#93c5fd;text-decoration:none}
-</style></head><body>
+</style><link rel="icon" href="/assets/programme-mark.svg"><link rel="stylesheet" href="/assets/css/workspace.css?v=20261005"><link rel="stylesheet" href="/assets/css/chrome.css?v=20261005"><script src="/assets/js/chrome.js?v=20261005" defer></script>
+</head><body>
 <header>
   <a href="/admin/">← Admin</a>
   <strong>Users</strong>
