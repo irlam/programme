@@ -3,6 +3,9 @@
  * Run once, then delete this file.
  */
 declare(strict_types=1);
+// Maintenance scripts run only through the hosting PHP CLI task runner.
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
+
 $root = dirname(__DIR__); // /httpdocs
 
 $files = [];
@@ -27,7 +30,7 @@ async function setupContractorDatalist(inputId){
 JS;
 
 /* ---------- /assets/js/drawer-contractor-patch.js ---------- */
-$files['assets/js/drawer-contractor-patch.js'] = <<<'JS';
+$files['assets/js/drawer-contractor-patch.js'] = <<<'JS'
 /*! Drawer Contractor Patch — allows contractor NAME, fixes name prefill, UK date parsing, CSRF send.
    Drop a single on your Gantt page.
    Optional: keep /assets/js/contractor-datalist.js for autocomplete.

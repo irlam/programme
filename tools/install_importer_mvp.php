@@ -15,6 +15,9 @@
  *   5) Delete this installer for security
  */
 declare(strict_types=1);
+// Maintenance scripts run only through the hosting PHP CLI task runner.
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
+
 
 $ROOT = dirname(__DIR__); // /httpdocs
 
