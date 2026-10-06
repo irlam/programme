@@ -6,3 +6,5 @@
 /storage/
 /tmp/
 /vendor/
+
+/app/config/runtime.private.php

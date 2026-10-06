@@ -184,3 +184,5 @@ php -S localhost:8000
 Database credentials must live outside the public document root. The application loads `../private/config.php` relative to its web root, or the file named by `PROGRAMME_CONFIG_FILE`. Copy `app/config/config.example.php` to that private location and enter deployment values there. Alternatively supply `PROGRAMME_DB_DSN`, `PROGRAMME_DB_USER` and `PROGRAMME_DB_PASSWORD` in the server environment.
 
 Preserve the current live configuration in the private location before deploying this change. Previously committed credentials remain in repository history and must be rotated separately. Do not commit the private file. Run `php tests/private-config.php` to verify loader behavior.
+
+On shared hosting restricted to the document root, run `bin/install-runtime-config.php` with PHP CLI after preservation. It installs an ignored, owner-only PHP runtime file with a direct-request 404 guard inside the existing allowed config directory. The loader uses this protected local file before the outside-root copy. Keep the outside-root copy for recovery; never commit runtime.private.php. This avoids widening the PHP file-access boundary to other hosted sites.
