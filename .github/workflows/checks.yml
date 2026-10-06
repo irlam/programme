@@ -1,0 +1,22 @@
+name: Programme checks
+on:
+  push:
+    branches: [main, work/suite-gateway-client]
+  pull_request:
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_sqlite, curl, ctype
+      - name: PHP syntax
+        run: find app api bin tests -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Private configuration
+        run: php tests/private-config.php
+      - name: Suite gateway boundary checks
+        run: php tests/suite-gateway.php
+      - name: Schedule regressions
+        run: python3 tests/schedule_regression.py
