@@ -4,6 +4,7 @@ import urllib.request, urllib.error, urllib.parse
 
 root = pathlib.Path(__file__).resolve().parents[1]
 php = os.environ.get('PHP_BINARY', 'php')
+php_server = [php, '-d', 'opcache.jit=0', '-d', 'opcache.jit_buffer_size=0']
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *args, **kwargs): return None
 opener = urllib.request.build_opener(NoRedirect())
@@ -50,7 +51,7 @@ with tempfile.TemporaryDirectory(prefix='programme-suite-http-') as temp:
     (temp/'flags.json').write_text('{}')
     sock=socket.socket();sock.bind(('127.0.0.1',0));port=sock.getsockname()[1];sock.close()
     log=(temp/'server.log').open('w')
-    server=subprocess.Popen([php,'-d',f'session.save_path={sessions}','-S',f'127.0.0.1:{port}',str(router)],stdout=log,stderr=log,cwd=web)
+    server=subprocess.Popen(php_server+['-d',f'session.save_path={sessions}','-S',f'127.0.0.1:{port}',str(router)],stdout=log,stderr=log,cwd=web)
     cookies={}
     def request(route, method='GET', body=None, headers=None, host='alpha.programme.defecttracker.uk'):
         h={'Host':host,'Cookie':'; '.join(k+'='+v for k,v in cookies.items())};h.update(headers or {})
@@ -121,7 +122,7 @@ with tempfile.TemporaryDirectory(prefix='programme-suite-http-') as temp:
     # Exercise the real prepend entrypoint: missing instance config must stop PHP execution.
     marker=web/'marker.php';marker.write_text('<?php echo "UNSAFE_APP_EXECUTED";')
     env=dict(os.environ);env['PROGRAMME_SUITE_CONFIG_FILE']=str(temp/'absent-config.php')
-    server=subprocess.Popen([php,'-d',f'auto_prepend_file={web}/app/suite-prepend.php','-S',f'127.0.0.1:{port}','-t',str(web)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env=env)
+    server=subprocess.Popen(php_server+['-d',f'auto_prepend_file={web}/app/suite-prepend.php','-S',f'127.0.0.1:{port}','-t',str(web)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env=env)
     try:
         for attempt in range(50):
             try:
