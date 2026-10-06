@@ -52,7 +52,7 @@ $bucket = [];
 foreach ($rows as $r) {
   $key = ($group === 'contractor')
     ? ($r['contractor'] ?: 'Unassigned')
-    : trim(($r['block']?:'').' '.($r['floor']?:'').' '.($r['unit']?:'').' '.($r['apt_type']?:'')) ?: 'Apartment';
+    : (trim(($r['block']?:'').' '.($r['floor']?:'').' '.($r['unit']?:'').' '.($r['apt_type']?:'')) ?: 'Apartment');
   $bucket[$key][] = $r;
 }
 
