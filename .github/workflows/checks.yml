@@ -13,7 +13,9 @@ jobs:
           php-version: '8.2'
           extensions: pdo, pdo_sqlite, curl, ctype
       - name: PHP syntax
-        run: find app api bin tests admin tools -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: |
+          find app api bin tests admin tools -name '*.php' -print0 | xargs -0 -n1 php -l
+          if [ -f suite-login.php ]; then php -l suite-login.php; fi
       - name: Private configuration
         run: php tests/private-config.php
       - name: Suite gateway boundary checks
@@ -29,3 +31,6 @@ jobs:
       - name: Suite server session boundaries
         if: hashFiles('tests/suite-session.php') != ''
         run: php tests/suite-session.php
+      - name: Suite HTTP boundaries
+        if: hashFiles('tests/suite-http.py') != ''
+        run: python3 tests/suite-http.py

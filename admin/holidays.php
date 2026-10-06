@@ -33,6 +33,16 @@ declare(strict_types=1);
   <table id="tbl"><thead><tr><th>Date</th><th>Working</th><th>Name</th><th>Source</th><th></th></tr></thead><tbody></tbody></table>
 </div>
 <script>
+let CSRF = null;
+async function token() {
+  if (!CSRF) {
+    const response = await fetch('/api/auth.php?action=whoami');
+    const identity = await response.json();
+    if (!response.ok || !identity.user || !identity.csrf) throw new Error('Sign in to change the working calendar.');
+    CSRF = identity.csrf;
+  }
+  return CSRF;
+}
 async function load() {
   const res = await fetch('/api/calendar.php?project=1');
   const json = await res.json();
@@ -53,12 +63,12 @@ async function save(){
     is_working: document.getElementById('is_working').checked ? 1 : 0,
     name: document.getElementById('name').value
   };
-  const res = await fetch('/api/calendar.php?project=1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const res = await fetch('/api/calendar.php?project=1',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF':await token()},body:JSON.stringify(body)});
   if (res.ok) { await load(); alert('Saved'); } else { alert('Save failed'); }
 }
 async function del(id){
   if (!confirm('Delete this exception?')) return;
-  const res = await fetch('/api/calendar.php?project=1&id='+id,{method:'DELETE'});
+  const res = await fetch('/api/calendar.php?project=1&id='+id,{method:'DELETE',headers:{'X-CSRF':await token()}});
   if (res.ok) { await load(); }
 }
 load();

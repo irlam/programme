@@ -13,7 +13,7 @@ spl_autoload_register(function(string $class) use ($ROOT) {
   if (is_file($fallback)) { require $fallback; return; }
 });
 
-require $ROOT . '/app/config/DB.php';
+require_once $ROOT . '/app/config/DB.php';
 require $ROOT . '/app/config/config.php';
 
 @session_start();
