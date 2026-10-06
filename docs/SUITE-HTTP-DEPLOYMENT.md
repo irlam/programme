@@ -2,6 +2,14 @@
 
 `app/suite-prepend.php` is an opt-in server-level gate for **dedicated fixture instances**. It is not automatically activated by deploying this branch. Never configure it on the current shared Programme installation. Suite inventory readiness must remain false pending deployment and isolation verification.
 
+## Sanitized staging package
+
+Run `python3 bin/build-suite-package.py /absolute/path/outside-the-checkout/staging.zip`. The builder refuses existing destinations, uses an explicit application/asset allowlist, and includes only tracked dependency/font code. It excludes runtime credentials, SQL, backups, installers, tests, probes and local-user screens. The generated login/help/navigation uses Construction Suite. Each public PHP entrypoint gets a `require_once` gate after its strict declaration, providing fail-closed protection if the server-wide prepend setting is missing. Missing private configuration returns generic 503 before endpoint execution.
+
+The ZIP separates `httpdocs/` from deployment instructions/rules and a SHA-256 manifest in `deployment/`. Publish only the `httpdocs/` contents to a fresh dedicated instance. Never extract `deployment/` into the public document root or overlay an old installation containing residual debug/runtime files. Do not treat this ZIP as an enabled production app: private configuration, schemas/fixtures, deployed Suite APIs, actual web-server rules and live tests are still required. No credentials are in the archive.
+
+The included `.htaccess` denies private/support directories and sensitive extensions for Apache. `deployment/nginx-rules.conf` provides instance-specific static-denial rules that must be merged into the provider's existing server configuration and syntax checked. Source tests do not prove those rules are active on Plesk. Private directories and static/upload paths require live HTTP checks before readiness can be enabled. The package contains no upload storage or download route; direct uploaded files remain unavailable.
+
 ## Deployment-owned configuration
 
 Set `PROGRAMME_SUITE_CONFIG_FILE` to a PHP file outside the document root that returns the same binding used by the gateway and session components:
