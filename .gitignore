@@ -8,3 +8,6 @@
 /vendor/
 
 /app/config/runtime.private.php
+
+/Database/database.sql
+/tools/*k87747*.sql

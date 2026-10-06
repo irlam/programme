@@ -186,3 +186,7 @@ Database credentials must live outside the public document root. The application
 Preserve the current live configuration in the private location before deploying this change. Previously committed credentials remain in repository history and must be rotated separately. Do not commit the private file. Run `php tests/private-config.php` to verify loader behavior.
 
 On shared hosting restricted to the document root, run `bin/install-runtime-config.php` with PHP CLI after preservation. It installs an ignored, owner-only PHP runtime file with a direct-request 404 guard inside the existing allowed config directory. The loader uses this protected local file before the outside-root copy. Keep the outside-root copy for recovery; never commit runtime.private.php. This avoids widening the PHP file-access boundary to other hosted sites.
+
+## Database source hygiene
+
+Use `Database/schema.sql` as a schema-only starting point and apply required tool migrations. Previously committed exports containing user/project data have been removed from current source; do not upload database exports into the document root or Git. This does not remove historical copies. Coordinate rotation of exposed credentials and affected login passwords separately.
