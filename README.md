@@ -190,3 +190,7 @@ On shared hosting restricted to the document root, run `bin/install-runtime-conf
 ## Database source hygiene
 
 Use `Database/schema.sql` as a schema-only starting point and apply required tool migrations. Previously committed exports containing user/project data have been removed from current source; do not upload database exports into the document root or Git. This does not remove historical copies. Coordinate rotation of exposed credentials and affected login passwords separately.
+
+## Maintenance access
+
+Legacy installation and repair scripts are CLI-only: web GET/POST return 404 before work begins. Run needed maintenance through the hosting PHP script task runner. The health report requires an authenticated administrator. The lookahead spreadsheet export has a PHP 8 grouping-syntax correction. `python3 tests/maintenance-web-guards.py` verifies installer denial, protected runtime-file denial and health-report access over isolated HTTP fixtures.

@@ -1,5 +1,8 @@
 <?php
 declare(strict_types=1);
+// Maintenance scripts run only through the hosting PHP CLI task runner.
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
+
 $ROOT = dirname(__DIR__, 1);
 $target = $ROOT . '/assets/js/daypilot-lite.min.js';
 $url = $_GET['url'] ?? 'https://cdn.jsdelivr.net/npm/@daypilot/daypilot-lite-javascript@4.3.0/daypilot-javascript.min.js';

@@ -7,6 +7,9 @@
  * Run once, then delete this file.
  */
 declare(strict_types=1);
+// Maintenance scripts run only through the hosting PHP CLI task runner.
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
+
 $root = dirname(__DIR__); // /httpdocs
 
 $files = [];

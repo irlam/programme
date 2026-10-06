@@ -8,6 +8,9 @@
  *     /admin/install_inject_drawer_patch.php?target=/index.php   (inject into one file)
  */
 declare(strict_types=1);
+// Maintenance scripts run only through the hosting PHP CLI task runner.
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
+
 
 $root = dirname(__DIR__);             // /httpdocs
 $scanOnly = isset($_GET['scan']) && $_GET['scan'] === '1';
