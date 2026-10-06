@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+/private/
+*.local.php
+/storage/
+/tmp/
+/vendor/
