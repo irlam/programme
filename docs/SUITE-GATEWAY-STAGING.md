@@ -1,6 +1,8 @@
 # Programme isolated-instance staging plan
 
-The SuiteGateway client is tested source only; it is not connected to Programme's request/session middleware and has not enabled any instance. No live instance keys or new accounts have been created.
+The SuiteGateway client is tested source only; it is not connected to Programme's request/session middleware and has not enabled any instance. Fixture hosting and database provisioning is underway separately. Deployment credentials and private hosting references are not stored in this repository.
+
+The staged SuiteUserMap component uses immutable Suite user IDs and a deployment-provisioned database binding. It never adopts an existing local account by matching email or name. A mapped account has an instance-specific synthetic email and an unknown random password; fresh verified roles update on every mapping. This component must be called only after fresh server-side gateway validation. It does not disable local login or protect any route by itself. Apply `Database/suite-instance-schema.sql` only to dedicated fixture databases after the base schema; provision exactly one binding row separately. MySQL execution and concurrency still require staging verification.
 
 ## Proposed staging resources
 
@@ -27,4 +29,4 @@ Several legacy Programme utilities bypass `api/_bootstrap.php`. A protected-rout
 
 With both fixtures running, prove foreign project/task/comment/dependency/import/export IDs cannot cross instances; cookies and files cannot cross hosts; browser-state mismatch, replay, expiry, disabled modules, company suspension, membership revocation and global logout deny access. Verify MySQL migrations and concurrent redemption. Define and test an offline reauthentication policy before retaining any company data in browser caches or outboxes. Only then record verification evidence and enable readiness flags in the deployment-owned Suite inventory.
 
-Current tests cover the client protocol with a controlled transport and the existing schedule behavior. They do not prove deployment or end-to-end tenant isolation.
+Current tests cover the client protocol with a controlled transport, immutable local-user mapping against independent SQLite fixtures, email collision refusal, changed roles, expiry, database binding checks, dangling accounts, transactional rollback and the existing schedule behavior. They do not prove MySQL deployment or end-to-end tenant isolation.

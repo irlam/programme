@@ -21,5 +21,8 @@ jobs:
         run: php tests/suite-gateway.php
       - name: Maintenance HTTP boundaries
         run: python3 tests/maintenance-web-guards.py
+      - name: Suite local identity mapping
+        if: hashFiles('tests/suite-user-map.php') != ''
+        run: php tests/suite-user-map.php
       - name: Schedule regressions
         run: python3 tests/schedule_regression.py
