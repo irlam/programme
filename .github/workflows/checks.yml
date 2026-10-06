@@ -26,3 +26,6 @@ jobs:
         run: php tests/suite-user-map.php
       - name: Schedule regressions
         run: python3 tests/schedule_regression.py
+      - name: Suite server session boundaries
+        if: hashFiles('tests/suite-session.php') != ''
+        run: php tests/suite-session.php

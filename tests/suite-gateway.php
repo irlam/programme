@@ -5,7 +5,7 @@ use App\Lib\SuiteGateway;
 $check=static function(bool $ok,string $label):void {if(!$ok)throw new RuntimeException('FAIL: '.$label);};
 $deny=static function(callable $f,string $label)use($check):void {try{$f();}catch(RuntimeException $e){return;}$check(false,$label);};
 $binding=['instance_id'=>1,'organization_id'=>1,'project_id'=>1,'local_project_id'=>7,'suite_origin'=>'https://suite.defecttracker.uk','origin'=>'https://alpha.programme.defecttracker.uk','key'=>bin2hex(random_bytes(32))];
-$identity=['instance_id'=>1,'organization_id'=>1,'project_id'=>1,'module_key'=>'programme','user_id'=>2,'name'=>'Fixture','email'=>'fixture@example.test','role'=>'user','session_expires_at'=>28800,'session_token'=>bin2hex(random_bytes(32))];
+$identity=['instance_id'=>1,'organization_id'=>1,'project_id'=>1,'module_key'=>'programme','user_id'=>2,'name'=>'Fixture','email'=>'fixture@example.test','role'=>'user','session_expires_at'=>time()+28800,'session_token'=>bin2hex(random_bytes(32))];
 $calls=[];$reply=['ok'=>true,'identity'=>$identity];
 $gateway=new SuiteGateway($binding,static function($url,$payload,$key)use(&$calls,&$reply,$binding){if($key!==$binding['key'])throw new LogicException('Wrong server key');$calls[]=[$url,$payload];return $reply;});
 $begin=$gateway->begin();$state=$begin['state'];$code=bin2hex(random_bytes(32));
@@ -15,6 +15,10 @@ $got=$gateway->redeem($code,$state,$state);$check($got['local_role']==='commente
 foreach(['organization_id','project_id','instance_id'] as $field){$reply['identity']=$identity;$reply['identity'][$field]=2;$deny(fn()=>$gateway->validate($identity['session_token']),'Foreign binding denied');}
 $reply['identity']=$identity;$reply['identity']['module_key']='permits';$deny(fn()=>$gateway->validate($identity['session_token']),'Foreign module denied');
 $reply['identity']=$identity;$reply['identity']['role']='superuser';$deny(fn()=>$gateway->validate($identity['session_token']),'Unknown role denied');
+foreach (['session_expires_at'=>time()-1,'role'=>['admin']] as $field=>$value) {
+    $reply['identity']=$identity;$reply['identity'][$field]=$value;
+    $deny(fn()=>$gateway->validate($identity['session_token']),'Invalid expiry or role type denied');
+}
 $reply=['ok'=>false];$deny(fn()=>$gateway->validate($identity['session_token']),'Server access revocation denied');
 $offline=new SuiteGateway($binding,static function(){throw new RuntimeException('Transport failure');});$deny(fn()=>$offline->validate($identity['session_token']),'Outage fails closed');
 $reply=['ok'=>true,'identity'=>$identity];$reply['identity']['role']='admin';$check($gateway->validate($identity['session_token'])['local_role']==='planner','Company admin cannot administer independent app accounts');

@@ -1,0 +1,70 @@
+<?php
+declare(strict_types=1);
+require dirname(__DIR__).'/app/Lib/SuiteGateway.php';
+require dirname(__DIR__).'/app/Lib/SuiteUserMap.php';
+require dirname(__DIR__).'/app/Lib/SuiteSession.php';
+use App\Lib\SuiteGateway;
+use App\Lib\SuiteUserMap;
+use App\Lib\SuiteSession;
+
+$check=static function(bool $ok,string $label):void { if (!$ok) throw new RuntimeException('FAIL: '.$label); };
+$deny=static function(callable $fn,string $label)use($check):void {
+    try {$fn();} catch (RuntimeException $e) {return;} $check(false,$label);
+};
+$binding=['instance_id'=>1,'organization_id'=>2,'project_id'=>3,'local_project_id'=>7,
+    'suite_origin'=>'https://suite.defecttracker.uk','origin'=>'https://alpha.programme.defecttracker.uk','key'=>bin2hex(random_bytes(32))];
+$pdo=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+$pdo->exec('CREATE TABLE projects(id INTEGER PRIMARY KEY); INSERT INTO projects VALUES(7);
+    CREATE TABLE users(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,email TEXT UNIQUE,role TEXT,password_hash TEXT,confirmed INTEGER);
+    CREATE TABLE suite_instance_binding(id INTEGER PRIMARY KEY,instance_id INTEGER,organization_id INTEGER,project_id INTEGER,local_project_id INTEGER);
+    INSERT INTO suite_instance_binding VALUES(1,1,2,3,7);
+    CREATE TABLE suite_user_map(suite_user_id INTEGER PRIMARY KEY,local_user_id INTEGER UNIQUE);');
+$identity=['instance_id'=>1,'organization_id'=>2,'project_id'=>3,'user_id'=>12,'module_key'=>'programme',
+    'name'=>'Fixture','email'=>'fixture@example.test','role'=>'manager','session_expires_at'=>time()+3600,'session_token'=>bin2hex(random_bytes(32))];
+$reply=['ok'=>true,'identity'=>$identity];$calls=[];$offline=false;
+$gateway=new SuiteGateway($binding,static function($url,$payload,$key)use(&$reply,&$calls,&$offline){
+    $calls[]=$payload;
+    if ($offline) throw new RuntimeException('Fixture outage');
+    return $reply;
+});
+$service=new SuiteSession($gateway,new SuiteUserMap($pdo,$binding),$binding);
+$code=bin2hex(random_bytes(32));$state=$gateway->begin()['state'];
+$session=['user'=>['id'=>99,'role'=>'admin']];
+$deny(function()use($service,&$session,$code,$state){$service->accept($session,$code,$state,str_repeat('0',64));},'Wrong browser state denied');
+$check($session===[] && $calls===[],'Failed callback clears local login before transport');
+$user=$service->accept($session,$code,$state,$state);
+$check($user['role']==='planner' && !isset($user['session_token']) && $session['suite_auth']['token']===$identity['session_token'],'Opaque token remains in server envelope only');
+$saved=$session;$count=count($calls);
+$session['user']['role']='admin';
+$reply['identity']['role']='contractor';
+$check($service->current($session)['role']==='commenter','Fresh current role overrides cached administrator');
+$service->current($session);
+$check(count($calls)===$count+2,'Every protected call contacts Suite');
+$reply['identity']=$identity;$reply['identity']['user_id']=13;
+$deny(function()use($service,&$session){$service->current($session);},'Token cannot change Suite user');
+$check($session===[],'Changed identity removes session');
+$session=$saved;$reply=['ok'=>false];
+$deny(function()use($service,&$session){$service->current($session);},'Revoked membership denied');
+$check($session===[],'Revocation clears cached local identity');
+$session=$saved;$reply=['ok'=>true,'identity'=>$identity];$offline=true;
+$deny(function()use($service,&$session){$service->current($session);},'Outage denies protected request');
+$check($session===[],'Outage clears cached login');
+$session=$saved;
+$deny(function()use($service,&$session){$service->logout($session);},'Logout reports remote outage');
+$check($session===[],'Logout still clears local session on outage');
+$offline=false;$session=$saved;$service->logout($session);
+$check($session===[] && end($calls)['action']==='revoke','Logout revokes opaque Suite token');
+$session=['user'=>['id'=>99,'role'=>'admin']];$count=count($calls);
+$deny(function()use($service,&$session){$service->current($session);},'Local password login alone cannot authorize Suite requests');
+$check($session===[] && count($calls)===$count,'Missing Suite envelope denied before transport');
+$betaBinding=$binding;$betaBinding['instance_id']=2;$betaBinding['origin']='https://beta.programme.defecttracker.uk';
+$beta=new SuiteSession($gateway,new SuiteUserMap($pdo,$binding),$betaBinding);$session=$saved;
+$deny(function()use($beta,&$session){$beta->current($session);},'Alpha session envelope rejected on Beta');
+$check($session===[] && count($calls)===$count,'Foreign envelope denied before transport');
+$pdo->exec('INSERT INTO projects VALUES(8)');$session=$saved;
+$deny(function()use($service,&$session){$service->current($session);},'Extra local project denies authorization');
+$check($session===[],'Invalid project database clears session');
+$pdo->exec('DELETE FROM projects WHERE id=8; UPDATE suite_instance_binding SET project_id=99');$session=$saved;
+$deny(function()use($service,&$session){$service->current($session);},'Wrong database binding denies authorization');
+$check($session===[],'Wrong database clears session');
+echo "PASS: fresh request validation, role downgrade, local-login refusal, foreign envelopes, revocation, outage, logout and single-project database gate.\n";

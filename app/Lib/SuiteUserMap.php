@@ -48,6 +48,9 @@ final class SuiteUserMap
             $project = $this->pdo->prepare('SELECT id FROM projects WHERE id = ?');
             $project->execute([$this->binding['local_project_id']]);
             if ($project->fetchColumn() === false) throw new RuntimeException('Bound project is missing.');
+            if ((int)$this->pdo->query('SELECT COUNT(*) FROM projects')->fetchColumn() !== 1) {
+                throw new RuntimeException('Instance requires one local project.');
+            }
             $find = $this->pdo->prepare('SELECT local_user_id FROM suite_user_map WHERE suite_user_id = ?');
             $find->execute([$identity['user_id']]);
             $localId = $find->fetchColumn();
