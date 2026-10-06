@@ -4,7 +4,7 @@ declare(strict_types=1);
 // config loader. This never prints connection values or executes the source.
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit('CLI only.'); }
 $root = dirname(__DIR__);
-$source = $root . '/app/config/config.php;
+$source = $root . '/app/config/config.php';
 $directory = dirname($root) . '/private';
 $target = $directory . '/config.php';
 if (is_file($target)) { echo "Private configuration already exists; left unchanged.\n"; exit(0); }
