@@ -103,6 +103,18 @@ with tempfile.TemporaryDirectory(prefix='programme-suite-http-') as temp:
         flags(role='contractor')
         assert request('/api/tasks.php','POST',b'{}',{'X-CSRF':csrf,'Content-Type':'application/json'})[0]==403
         assert request('/api/comments.php','POST',b'{}',{'X-CSRF':csrf,'Content-Type':'application/json'})[0]==200
+        flags(role='viewer')
+        status,data,_,_=request('/api/auth.php?action=whoami')
+        assert status==200 and json.loads(data)['user']['read_only'] is True
+        assert request('/api/workspace.php')[0]==200
+        assert request('/api/export/csv.php?project=1')[0]==200
+        assert request('/api/export/csv.php?project=2')[0]==403
+        for route in ['/api/comments.php','/api/tasks.php','/api/import/preview.php','/api/import/commit.php','/api/baselines.php','/api/calendar.php','/admin/holidays.php','/admin/templates.php']:
+            for method in ['POST','DELETE']:
+                assert request(route,method,b'{}',{'X-CSRF':csrf,'Content-Type':'application/json'})[0]==403,(route,method,'Viewer mutation escaped gate')
+        flags(role='manager')
+        assert json.loads(request('/api/auth.php?action=whoami')[1])['user']['read_only'] is False
+        assert request('/api/tasks.php','POST',b'{}',{'X-CSRF':csrf,'Content-Type':'application/json'})[0]==200
         assert request('/api/workspace.php',host='beta.programme.defecttracker.uk')[0]==403
         assert request('/api/workspace.php',headers={'X-Fixture-HTTPS':'off'})[0]==403
         flags(deny=True)

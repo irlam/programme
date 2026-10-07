@@ -22,6 +22,7 @@ foreach (['session_expires_at'=>time()-1,'role'=>['admin']] as $field=>$value) {
 $reply=['ok'=>false];$deny(fn()=>$gateway->validate($identity['session_token']),'Server access revocation denied');
 $offline=new SuiteGateway($binding,static function(){throw new RuntimeException('Transport failure');});$deny(fn()=>$offline->validate($identity['session_token']),'Outage fails closed');
 $reply=['ok'=>true,'identity'=>$identity];$reply['identity']['role']='admin';$check($gateway->validate($identity['session_token'])['local_role']==='planner','Company admin cannot administer independent app accounts');
+$reply=['ok'=>true,'identity'=>$identity];$reply['identity']['role']='viewer';$check($gateway->validate($identity['session_token'])['local_role']==='commenter','Viewer uses a restricted legacy account role');
 $reply=['ok'=>true];$gateway->revoke($identity['session_token']);$check(end($calls)[1]['action']==='revoke','Server-side logout');
 foreach(['http://alpha.programme.defecttracker.uk','https://programme.defecttracker.uk','https://user@alpha.programme.defecttracker.uk','https://alpha.programme.defecttracker.uk.evil.test'] as $origin){$bad=$binding;$bad['origin']=$origin;$deny(fn()=>new SuiteGateway($bad),'Unsafe origin denied');}
 echo "PASS: Programme gateway browser state, immutable identity binding, limited roles, session checks, logout and outage denial.\n";

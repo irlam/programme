@@ -1,7 +1,7 @@
 name: Programme checks
 on:
   push:
-    branches: [main, work/suite-gateway-client]
+    branches: [main, work/suite-gateway-client, work/suite-read-only]
   pull_request:
 jobs:
   php:

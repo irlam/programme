@@ -161,7 +161,7 @@
       const data = await api('/api/auth.php?action=whoami');
       state.user = data.user; state.csrf = data.csrf;
       state.editable = ['admin','planner'].includes(data.user?.role);
-      $('account-link').textContent = data.user ? `${data.user.name} · ${data.user.role}` : 'Sign in';
+      $('account-link').textContent = data.user ? `${data.user.name} · ${data.user.read_only ? 'Read-only' : data.user.role}` : 'Sign in';
       $('account-link').href = data.user ? '/admin/' : '/login.html';
       $('avatar').textContent = data.user ? data.user.name.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase() : 'P';
       $('logout').hidden = !data.user;
