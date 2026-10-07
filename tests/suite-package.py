@@ -37,6 +37,9 @@ with tempfile.TemporaryDirectory(prefix='programme-package-') as temp:
         assert allowed=={'/'+p for p in builder.PUBLIC_PHP},'Package/gate route inventory drift'
         for name in ['httpdocs/index.html','httpdocs/lookahead.html','httpdocs/admin/index.php','httpdocs/assets/js/chrome.js']:
             assert '/admin/users.php' not in package.read(name).decode(),name
+        for name in ['httpdocs/index.html','httpdocs/lookahead.html']:
+            dashboard=re.search(r'<a\b[^>]*href="https://suite.defecttracker.uk/"[^>]*>',package.read(name).decode())
+            assert dashboard and 'hidden' not in dashboard.group(),'Clients must retain Suite dashboard navigation'
         login=package.read('httpdocs/login.html').decode()
         assert '/suite-login.php' in login and 'type="password"' not in login
         package.extractall(temp/'extracted')

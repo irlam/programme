@@ -56,7 +56,7 @@ def guarded(name, data):
     return (text[:match.end()]+guard+text[match.end():]).encode()
 
 def navigation(data):
-    return data.replace(b'/admin/users.php',b'https://suite.defecttracker.uk/').replace(b'Team & access',b'Suite dashboard').replace(b'Manage programme accounts and their existing permissions.',b'Manage your team and project access through Construction Suite.').replace(b'Manage team',b'Open Suite')
+    return data.replace(b'/admin/users.php',b'https://suite.defecttracker.uk/').replace(b'href="https://suite.defecttracker.uk/" data-requires-edit hidden',b'href="https://suite.defecttracker.uk/"').replace(b'Team & access',b'Suite dashboard').replace(b'Manage programme accounts and their existing permissions.',b'Manage your team and project access through Construction Suite.').replace(b'Manage team',b'Open Suite')
 
 def help_page(title, content):
     return ('''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'''+title+''' · Programme</title><link rel="icon" href="/assets/programme-mark.svg"><link rel="stylesheet" href="/assets/css/workspace.css"></head><body><main style="max-width:640px;margin:12vh auto;padding:24px"><img src="/assets/programme-mark.svg" width="52" alt="Programme"><h1>'''+title+'''</h1><p>'''+content+'''</p><p><a class="btn primary" href="/suite-login.php">Sign in through Construction Suite</a></p><p><a href="/">Programme</a> · <a href="https://suite.defecttracker.uk/">Suite dashboard</a></p></main></body></html>''').encode()
