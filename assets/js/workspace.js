@@ -160,9 +160,10 @@
     try {
       const data = await api('/api/auth.php?action=whoami');
       state.user = data.user; state.csrf = data.csrf;
-      state.editable = ['admin','planner'].includes(data.user?.role);
+      state.editable = !data.user?.read_only && ['admin','planner'].includes(data.user?.role);
+      document.querySelectorAll('[data-requires-edit]').forEach(link => { link.hidden = !state.editable; });
       $('account-link').textContent = data.user ? `${data.user.name} · ${data.user.read_only ? 'Read-only' : data.user.role}` : 'Sign in';
-      $('account-link').href = data.user ? '/admin/' : '/login.html';
+      $('account-link').href = data.user ? (state.editable ? '/admin/' : '/') : '/login.html';
       $('avatar').textContent = data.user ? data.user.name.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase() : 'P';
       $('logout').hidden = !data.user;
       if(state.loaded) render();
@@ -178,7 +179,7 @@
     const fields = {'edit-name':task.name,'edit-contractor':task.contractor||'','edit-ops':task.operatives,'edit-duration':task.duration_days,'edit-zone':task.zone||'','edit-progress':task.percent_complete,'edit-constraint':task.constraint_start||''};
     Object.entries(fields).forEach(([id,value])=>{ $(id).value=value; $(id).disabled=!state.editable; });
     $('save-task').hidden = !state.editable;
-    $('edit-notice').textContent = state.editable ? 'Dates are recalculated using project dependencies and the working calendar. Leave a constraint empty to remove it.' : 'This is a read-only view. Sign in as an admin or planner to update this activity.';
+    $('edit-notice').textContent = state.editable ? 'Dates are recalculated using project dependencies and the working calendar. Leave a constraint empty to remove it.' : (state.user?.read_only ? 'Your client access allows you to view and export this programme. Contact your company administrator if you need to make changes.' : 'This is a read-only view. Sign in as an admin or planner to update this activity.');
     const alerts=[];
     if(task.alerts?.tight?.length) alerts.push(`${task.alerts.tight.length} tight predecessor handover(s)`);
     if(task.alerts?.overlap_with?.length) alerts.push(`${task.alerts.overlap_with.length} activity overlap(s) in this zone`);

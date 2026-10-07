@@ -6,3 +6,6 @@
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}@media print{.sidebar,.topbar,.heading-actions,.filters,.toolbar button,.toolbar input,.toolbar select,.segments,.footer,.workspace-foot,.toast{display:none!important}.app{margin:0}.page{padding:0}.stats{gap:8px}.workspace{box-shadow:none}.timeline-scroll,.task-table-wrap{max-height:none;overflow:visible}.timeline-grid{grid-template-columns:210px var(--timeline-width)}.timeline-label{position:static}.task-table th{position:static}body{background:white}.task-bar,.badge,.stat{print-color-adjust:exact}}
 
 .workspace-head>div:last-child{flex-wrap:wrap;max-width:100%}
+
+/* Keep restricted navigation out of keyboard and mobile menus. */
+[data-requires-edit][hidden]{display:none!important}

@@ -22,7 +22,7 @@ function add(d,n){const date=new Date(d+'T12:00:00Z');date.setUTCDate(date.getUT
 const fixture={ok:true,project:{id:1,name:'Riverside Residences',timezone:'Europe/London',start_date:'2026-10-01'},projects:[{id:1,name:'Riverside Residences'},{id:2,name:'Project two'}],today:'2026-10-05',tasks};
 
 const tick = ms => new Promise(resolve=>setTimeout(resolve,ms || 10));
-function setup(file='index.html',role='planner',fail=false){
+function setup(file='index.html',role='planner',fail=false,readOnly=false){
   const errors=[];const writes=[];
   const vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
   const dom=new JSDOM(fs.readFileSync(path.join(root,file),'utf8'),{url:'https://programme.test/'+file,runScripts:'outside-only',virtualConsole:vc});
@@ -33,11 +33,12 @@ function setup(file='index.html',role='planner',fail=false){
   w.fetch=async(url,opts={})=>{
     let data={ok:true};
     if(url.includes('workspace.php'))data=fail?{ok:false,error:'Test unavailable'}:fixture;
-    if(url.includes('whoami'))data={ok:true,user:role?{name:'Chris Irlam',role}:null,csrf:'test-csrf'};
+    if(url.includes('whoami'))data={ok:true,user:role?{name:'Chris Irlam',role,read_only:readOnly}:null,csrf:'test-csrf'};
     if(url.includes('tasks.php')){writes.push(JSON.parse(opts.body));data={ok:true};}
     if(url.includes('analytics.php')){const type=new URL(url,'https://programme.test').searchParams.get('type');data=type==='workforce'?{ok:true,labels:['2026-10-01','2026-10-02'],total:[8,14]}:type==='tight'?{ok:true,weeks:['2026-W40'],data:{'2026-W40':{Brickwork:2}}}:type==='throughput'?{ok:true,weeks:['2026-W40','2026-W41'],started:[3,5],finished:[1,2]}:{ok:true,rows:[]};}
     return {ok:!data.error,status:data.error?503:200,json:async()=>data};
   };
+  if(file==='analytics.html') w.eval(fs.readFileSync(path.join(root,'assets/js/chrome.js'),'utf8'));
   w.eval(fs.readFileSync(path.join(root,file==='analytics.html'?'assets/js/analytics.js':'assets/js/workspace.js'),'utf8'));
   return {dom,w,errors,writes,$:id=>w.document.getElementById(id),all:s=>w.document.querySelectorAll(s)};
 }
@@ -56,6 +57,22 @@ function setup(file='index.html',role='planner',fail=false){
  $('menu-toggle').click();assert.equal($('menu-toggle').getAttribute('aria-expanded'),'true');$('menu-backdrop').click();assert.equal($('menu-toggle').getAttribute('aria-expanded'),'false');
  const ahead=setup('lookahead.html');await tick();assert.equal(ahead.$('workspace-title').textContent,'Lookahead planner');
  const read=setup('index.html',null);await tick();read.w.document.querySelector('[data-task="2"]').click();assert(read.$('save-task').hidden);assert(read.$('edit-name').disabled);
+ for(const file of ['index.html','lookahead.html']) {
+   const viewer=setup(file,'planner',false,true);await tick();
+   assert(viewer.$('account-link').textContent.includes('Read-only'));assert.equal(viewer.$('account-link').getAttribute('href'),'/');
+   assert([...viewer.all('[data-requires-edit]')].every(link=>link.hidden));
+   viewer.w.document.querySelector('[data-task="2"]').click();
+   assert.equal(viewer.$('task-dialog-title').textContent,'Activity details');assert(viewer.$('save-task').hidden);assert(viewer.$('edit-progress').disabled);
+   assert(viewer.$('edit-notice').textContent.includes('client access'));
+   viewer.$('task-form').dispatchEvent(new viewer.w.Event('submit',{cancelable:true}));await tick();assert.equal(viewer.writes.length,0);
+   const bar=viewer.w.document.querySelector('.task-bar[data-task="2"]');
+   for(const [name,x] of [['pointerdown',100],['pointermove',160],['pointerup',160]]){const e=new viewer.w.MouseEvent(name,{bubbles:true,clientX:x,button:0});Object.defineProperty(e,'pointerId',{value:1});bar.dispatchEvent(e);}
+   assert(!viewer.$('move-dialog').open);assert(viewer.all('a[href*="/api/export/"]').length>0);
+   viewer.$('menu-toggle').click();assert([...viewer.all('[data-requires-edit]')].every(link=>link.hidden));
+   assert.deepEqual(viewer.errors,[]);viewer.dom.window.close();
+ }
+ assert([...all('[data-requires-edit]')].every(link=>!link.hidden));
+ const clientReports=setup('analytics.html','planner',false,true);await tick();assert.equal(clientReports.all('svg').length,3);assert([...clientReports.all('[data-requires-edit]')].every(link=>link.hidden));assert.deepEqual(clientReports.errors,[]);clientReports.dom.window.close();
  const unavailable=setup('index.html',null,true);await tick();assert(unavailable.$('content').textContent.includes('Programme unavailable'));assert(unavailable.$('retry-load'));
  const reports=setup('analytics.html');await tick();assert.equal(reports.all('svg').length,3);assert(reports.$('variance-table').textContent.includes('No baseline'));
  for(const obj of [t,ahead,read,unavailable,reports]){assert.deepEqual(obj.errors,[]);obj.dom.window.close();}

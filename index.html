@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#122c28"><meta name="description" content="Plan, coordinate and track your construction programme."><title>Programme · DefectTracker</title><link rel="icon" href="/assets/programme-mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/css/workspace.css?v=20261005"><script src="/assets/js/workspace.js?v=20261005" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#122c28"><meta name="description" content="Plan, coordinate and track your construction programme."><title>Programme · DefectTracker</title><link rel="icon" href="/assets/programme-mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/css/workspace.css?v=20261007"><script src="/assets/js/workspace.js?v=20261007" defer></script></head>
 <body>
 <a href="#workspace" class="btn" style="position:absolute;left:-9999px" onfocus="this.style.left='16px'" onblur="this.style.left='-9999px'">Skip to programme</a>
 <div class="menu-backdrop" id="menu-backdrop"></div>
@@ -10,17 +10,17 @@
 <a href="/index.html" data-nav="timeline"><span class="nav-icon" aria-hidden="true">▤</span> Programme</a>
 <a href="/lookahead.html" data-nav="lookahead"><span class="nav-icon" aria-hidden="true">▦</span> Lookahead</a>
 <a href="/analytics.html"><span class="nav-icon" aria-hidden="true">▥</span> Analytics</a>
-<a href="/admin/import.html"><span class="nav-icon" aria-hidden="true">↥</span> Import programme</a>
+<a href="/admin/import.html" data-requires-edit hidden><span class="nav-icon" aria-hidden="true">↥</span> Import programme</a>
 </nav><div class="nav-label">Project controls</div><nav>
-<a href="/admin/baselines.php"><span class="nav-icon" aria-hidden="true">◎</span> Baselines & variance</a>
-<a href="/admin/holidays.php"><span class="nav-icon" aria-hidden="true">□</span> Working calendar</a>
-<a href="/admin/templates.php"><span class="nav-icon" aria-hidden="true">▧</span> Templates</a>
-<a href="/admin/users.php"><span class="nav-icon" aria-hidden="true">♧</span> Team & access</a>
+<a href="/admin/baselines.php" data-requires-edit hidden><span class="nav-icon" aria-hidden="true">◎</span> Baselines & variance</a>
+<a href="/admin/holidays.php" data-requires-edit hidden><span class="nav-icon" aria-hidden="true">□</span> Working calendar</a>
+<a href="/admin/templates.php" data-requires-edit hidden><span class="nav-icon" aria-hidden="true">▧</span> Templates</a>
+<a href="/admin/users.php" data-requires-edit hidden><span class="nav-icon" aria-hidden="true">♧</span> Team & access</a>
 </nav><div class="sidebar-foot">Built for the working day.<br><a href="/about.html">Help & guidance ↗</a><br><a href="/links.html">All tools & exports ↗</a></div>
 </aside>
 <div class="app"><header class="topbar"><div class="breadcrumb"><button class="menu-toggle" id="menu-toggle" aria-label="Open navigation" aria-expanded="false">☰</button><span>Workspace</span><span>/</span><b id="breadcrumb-title">Construction programme</b></div><div class="account"><span class="connection" id="connection"><i></i>Connecting</span><span class="avatar" id="avatar">P</span><a id="account-link" href="/login.html">Sign in</a><button id="logout" hidden>Sign out</button></div></header>
 <main class="page">
-<div class="heading"><div><div class="eyebrow">A clearer plan. A better handover.</div><h1 id="page-title">Your programme, in focus.</h1><p id="project-subtitle">One place to coordinate your trades, dates and progress.</p></div><div class="heading-actions"><select id="project" class="project-select" aria-label="Project"><option value="1">Loading project…</option></select><a class="btn primary" href="/admin/import.html">↥ Import programme</a></div></div>
+<div class="heading"><div><div class="eyebrow">A clearer plan. A better handover.</div><h1 id="page-title">Your programme, in focus.</h1><p id="project-subtitle">One place to coordinate your trades, dates and progress.</p></div><div class="heading-actions"><select id="project" class="project-select" aria-label="Project"><option value="1">Loading project…</option></select><a class="btn primary" href="/admin/import.html" data-requires-edit hidden>↥ Import programme</a></div></div>
 <section class="stats" aria-label="Project summary">
 <button class="stat" id="stat-all" title="Show all tasks"><span class="stat-label">Programme activities <span class="stat-icon" aria-hidden="true">▤</span></span><span class="stat-value" id="stat-total">—</span><span class="stat-detail" id="stat-total-detail">Across the whole project</span></button>
 <button class="stat" id="stat-progress" title="Show completed tasks"><span class="stat-label">Overall progress <span class="stat-icon" aria-hidden="true">◎</span></span><span class="stat-value" id="stat-percent">—</span><span class="stat-detail" id="stat-progress-detail">Average task completion</span><span class="progress-track"><span id="overall-progress"></span></span></button>

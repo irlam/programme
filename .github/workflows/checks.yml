@@ -37,3 +37,15 @@ jobs:
       - name: Suite deployment package
         if: hashFiles('tests/suite-package.py') != ''
         run: python3 tests/suite-package.py
+
+  workspace-dom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated DOM test dependency
+        run: npm install --prefix "$RUNNER_TEMP/programme-dom" --no-save --ignore-scripts jsdom@26.1.0
+      - name: Workspace and client navigation regressions
+        run: PROGRAMME_TEST_JSDOM="$RUNNER_TEMP/programme-dom/node_modules/jsdom" node tests/workspace_dom.cjs
