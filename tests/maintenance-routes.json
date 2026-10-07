@@ -14,5 +14,6 @@
   "tools/install_zipstream.php",
   "admin/install_importer_fix.php",
   "admin/fetch-daypilot.php",
-  "admin/patch_add_notes.php"
+  "admin/patch_add_notes.php",
+  "bin/suite-preflight.php"
 ]

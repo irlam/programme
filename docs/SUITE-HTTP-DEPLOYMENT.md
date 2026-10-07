@@ -50,3 +50,9 @@ The PHP route allowlist blocks raw SQL, GET recalculation, local-user administra
 - Verify host-specific cookies and the actual browser callback over HTTPS, including session-ID rotation and state failure. The automated HTTP test simulates server HTTPS metadata; it does not replace a live TLS/browser test.
 
 The shared hosting system account remains a filesystem isolation limitation. Do not mark tenant readiness based only on passing these source tests.
+
+## Read-only deployment preflight
+
+Run `php deployment/suite-preflight.php` from the extracted domain-folder package (or `php bin/suite-preflight.php` in the source checkout), with the dedicated site's PHP CLI and deployment environment. The command reads the existing private binding and database configuration; it creates no accounts, imports no schema, changes no records and makes no network request to Suite. Missing configuration, broad binding-file permissions, incomplete tables, mismatched bindings, extra local projects and dangling user mappings fail with fixed check names and exit code 1. Output never includes keys, passwords, DSNs, database names or exception details. Do not place this CLI tool under httpdocs.
+
+A successful local preflight is not a readiness decision. CLI settings can differ from web PHP-FPM. The JSON always keeps tenant_ready false and lists the HTTPS, cookie, Suite inventory, database privilege, static denial, two-company workflow, browser/mobile and restore checks still required. Use the hosting task scheduler with the site's PHP binary if shell access is unavailable. Configure deployment secrets through secure owner entry, never command-line password arguments or chat.

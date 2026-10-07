@@ -13,7 +13,7 @@ PUBLIC_PHP = [
     'admin/index.php','admin/baselines.php','admin/holidays.php','admin/templates.php',
 ]
 SUPPORT = ['api/_bootstrap.php','app/suite-prepend.php','app/config/config.php','app/config/DB.php']
-SUPPORT += ['app/Lib/'+name+'.php' for name in ['SuiteGateway','SuiteUserMap','SuiteSession','SuiteHttp','Scheduler','WorkingDays','ImportLookahead']]
+SUPPORT += ['app/Lib/'+name+'.php' for name in ['SuiteGateway','SuiteUserMap','SuiteSession','SuiteHttp','SuitePreflight','Scheduler','WorkingDays','ImportLookahead']]
 SUPPORT += ['app/Lib/fpdf/fpdf.php']
 STATIC = ['index.html','lookahead.html','analytics.html','admin/import.html',
     'assets/programme-mark.svg','assets/css/chrome.css','assets/css/workspace.css',
@@ -80,6 +80,7 @@ def build(destination):
     files['httpdocs/.htaccess']=APACHE.encode()
     files['deployment/nginx-rules.conf']=NGINX.encode()
     files['deployment/README.md']=source('docs/SUITE-HTTP-DEPLOYMENT.md')
+    files['deployment/suite-preflight.php']=source('bin/suite-preflight.php')
     manifest={'format':1,'staging_only':True,'tenant_ready':False,
         'public_php':PUBLIC_PHP,'files':{name:hashlib.sha256(data).hexdigest() for name,data in sorted(files.items())}}
     files['deployment/manifest.json']=(json.dumps(manifest,indent=2,sort_keys=True)+'\n').encode()

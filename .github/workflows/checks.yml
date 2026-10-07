@@ -34,6 +34,8 @@ jobs:
       - name: Suite HTTP boundaries
         if: hashFiles('tests/suite-http.py') != ''
         run: python3 tests/suite-http.py
+      - name: Read-only deployment preflight
+        run: php tests/suite-preflight.php
       - name: Suite deployment package
         if: hashFiles('tests/suite-package.py') != ''
         run: python3 tests/suite-package.py
