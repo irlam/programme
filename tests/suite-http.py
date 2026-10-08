@@ -11,7 +11,7 @@ opener = urllib.request.build_opener(NoRedirect())
 with tempfile.TemporaryDirectory(prefix='programme-suite-http-') as temp:
     temp = pathlib.Path(temp); web = temp/'httpdocs'; web.mkdir()
     sessions = temp/'sessions'; sessions.mkdir()
-    for name in ['SuiteGateway','SuiteUserMap','SuiteSession','SuiteHttp']:
+    for name in ['SuiteBinding','SuiteGateway','SuiteUserMap','SuiteSession','SuiteHttp']:
         dst=web/'app'/'Lib'/(name+'.php'); dst.parent.mkdir(parents=True,exist_ok=True)
         shutil.copyfile(root/'app'/'Lib'/(name+'.php'),dst)
     for name in ['api/_bootstrap.php','app/config/DB.php','app/config/config.php','app/suite-prepend.php']:

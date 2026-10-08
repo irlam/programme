@@ -13,7 +13,7 @@ PUBLIC_PHP = [
     'admin/index.php','admin/baselines.php','admin/holidays.php','admin/templates.php',
 ]
 SUPPORT = ['api/_bootstrap.php','app/suite-prepend.php','app/config/config.php','app/config/DB.php']
-SUPPORT += ['app/Lib/'+name+'.php' for name in ['SuiteGateway','SuiteUserMap','SuiteSession','SuiteHttp','SuitePreflight','Scheduler','WorkingDays','ImportLookahead']]
+SUPPORT += ['app/Lib/'+name+'.php' for name in ['SuiteBinding','SuiteGateway','SuiteUserMap','SuiteSession','SuiteHttp','SuitePreflight','Scheduler','WorkingDays','ImportLookahead']]
 SUPPORT += ['app/Lib/fpdf/fpdf.php']
 STATIC = ['index.html','lookahead.html','analytics.html','admin/import.html',
     'assets/programme-mark.svg','assets/css/chrome.css','assets/css/workspace.css',

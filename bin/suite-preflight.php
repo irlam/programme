@@ -11,11 +11,9 @@ try {
     if (!$app) throw new RuntimeException();
     $root=dirname($app);
     $checks['php_runtime']=PHP_VERSION_ID>=80200 && extension_loaded('pdo') && extension_loaded('curl') && extension_loaded('ctype');
-    $file=realpath((string)getenv('PROGRAMME_SUITE_CONFIG_FILE'));
-    $checks['private_binding_file']=$file && is_file($file) && !str_starts_with($file,$root.DIRECTORY_SEPARATOR) && (fileperms($file)&0077)===0;
-    if (!$checks['private_binding_file']) throw new RuntimeException();
-    $binding=require $file;
-    if (!is_array($binding)) throw new RuntimeException();
+    require_once $app.'/Lib/SuiteBinding.php';
+    try {$binding=App\Lib\SuiteBinding::load($root);$checks['private_binding_file']=true;}
+    catch (Throwable $e) {$checks['private_binding_file']=false;throw $e;}
     require_once $app.'/Lib/SuiteGateway.php';
     require_once $app.'/Lib/SuitePreflight.php';
     require_once $app.'/config/DB.php';

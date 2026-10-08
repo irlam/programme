@@ -6,12 +6,8 @@ if (PHP_SAPI === 'cli') return;
 header('Cache-Control: no-store');
 try {
     $root=realpath(dirname(__DIR__));
-    $file=realpath((string)getenv('PROGRAMME_SUITE_CONFIG_FILE'));
-    if (!$root || !$file || !is_file($file) || str_starts_with($file,$root.DIRECTORY_SEPARATOR)) {
-        throw new RuntimeException('Private instance configuration required.');
-    }
-    $binding=require $file;
-    if (!is_array($binding)) throw new RuntimeException('Invalid instance configuration.');
+    require_once __DIR__.'/Lib/SuiteBinding.php';
+    $binding=App\Lib\SuiteBinding::load((string)$root);
     foreach (['SuiteGateway','SuiteUserMap','SuiteSession','SuiteHttp'] as $class) require_once __DIR__.'/Lib/'.$class.'.php';
     require_once __DIR__.'/config/DB.php';
     $script=realpath((string)($_SERVER['SCRIPT_FILENAME'] ?? ''));
