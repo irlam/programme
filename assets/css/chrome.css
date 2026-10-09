@@ -10,3 +10,6 @@ body.legacy-page{margin-left:230px!important;background:var(--bg)!important;colo
 .legacy-page button,.legacy-page a.btn{background:var(--accent)!important;border-color:var(--accent)!important;color:white!important;border-radius:8px!important}
 .legacy-page th{background:#f8fafb!important;color:var(--muted)!important;text-align:left}.legacy-page td,.legacy-page th{border-color:var(--line)!important;padding:11px 12px!important}.legacy-page table{display:block;overflow:auto;max-width:100%}.legacy-page hr{border-color:var(--line)!important}.legacy-page .grid{gap:20px!important}.legacy-page .slippos{color:#a76d21}.legacy-page .slipneg{color:var(--accent)}
 @media(max-width:1100px){body.legacy-page{margin-left:190px!important}}@media(max-width:760px){body.legacy-page{margin-left:0!important}.legacy-page>main,.legacy-page>.wrap{padding:22px 16px!important}.legacy-page>header{padding:14px 16px!important;min-height:60px}.legacy-page .grid,.legacy-page .grid-2{grid-template-columns:1fr!important}.legacy-page .bl-kv{grid-template-columns:1fr!important}.legacy-page .card{padding:18px!important}}@media print{body.legacy-page{margin:0!important}.legacy-page>header{display:none}}
+
+/* Button links must beat the generic legacy link colour, including :not specificity. */
+.legacy-page a.btn:not(.sidebar a),.legacy-page a.btn:not(.sidebar a):visited{color:#fff!important}

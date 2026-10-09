@@ -55,7 +55,7 @@ final class SuiteGateway
             if (($identity[$field]??null)!==$this->binding[$field])throw new RuntimeException('Project binding mismatch.');
         }
         if (($identity['module_key']??'')!=='programme'||!is_int($identity['user_id']??null)||$identity['user_id']<1||!is_int($identity['session_expires_at']??null)||$identity['session_expires_at']<=time()||!is_string($identity['role']??null))throw new RuntimeException('Invalid Suite identity.');
-        $roles=['platform_admin'=>'admin','admin'=>'planner','manager'=>'planner','site_manager'=>'planner','user'=>'commenter','contractor'=>'commenter'];
+        $roles=['platform_admin'=>'admin','admin'=>'planner','manager'=>'planner','site_manager'=>'planner','user'=>'commenter','contractor'=>'commenter','viewer'=>'commenter'];
         $role=$roles[$identity['role']??'']??null;
         if ($role===null)throw new RuntimeException('Unsupported Suite role.');
         foreach (['name','email'] as $field)if (!is_string($identity[$field]??null)||strlen($identity[$field])>255)throw new RuntimeException('Invalid Suite identity.');

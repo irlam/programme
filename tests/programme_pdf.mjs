@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {parseProgrammePages,programmeCsv} from '../assets/js/programme-pdf.js';
+const item=(str,x,y,width=10)=>({str,width,height:5,transform:[5,0,0,5,x,800-y]});
+const header=[item('Line',10,40),item('Name',40,40),item('Start',100,40),item('Finish',140,40),item('Duration',180,40,30)];
+const row=(id,name,x,y,start='02/11/2026',finish='13/11/2026',duration='2w')=>[item(String(id),12,y),item(name,x,y),item(start,95,y,30),item(finish,135,y,30),...(duration?[item(duration,180,y,25)]:[])];
+const page={height:800,items:[...header,...row(1,'Main work',25,70),...row(2,'Wrapped activity',30,90),item('second line',30,96),...row(3,'Handover',30,115,'13/11/2026','13/11/2026','')]};
+const parsed=parseProgrammePages([page]);assert.equal(parsed.source_rows,3);assert.equal(parsed.summary_rows,1);assert.equal(parsed.tasks.length,2);assert.equal(parsed.milestones,1);assert.equal(parsed.tasks[0].name,'Wrapped activity second line');assert.equal(parsed.tasks[0].duration_days,10);assert.equal(parsed.tasks[0].section,'Main work');assert.equal(parsed.tasks[1].start,'2026-11-13');
+assert(programmeCsv(parsed).includes('Task,Contractor,Start,Finish,Duration,Section'));
+const bad=structuredClone(page);bad.items.find(i=>i.str==='02/11/2026').str='31/02/2026';assert.throws(()=>parseProgrammePages([bad]),/Invalid date/);
+assert.throws(()=>parseProgrammePages([{height:800,items:header}]),/No readable activity dates/);
+assert.throws(()=>parseProgrammePages([page,page]),/Duplicate/);
+const incomplete=structuredClone(page);incomplete.items=incomplete.items.filter(i=>!(i.str==='13/11/2026'&&800-i.transform[5]===90));assert.throws(()=>parseProgrammePages([incomplete]),/incomplete/);
+const numeric={...parsed,tasks:[{...parsed.tasks[0],name:'Quoted "task", & <text>'}]};assert(programmeCsv(numeric).includes('"Quoted ""task"", & <text>"'));
+console.log('PASS: programme columns, wrapped names, hierarchy/summary filtering, dates/durations, same-day milestone warning, CSV escaping; scanned/incomplete/duplicate/invalid-date rejection');

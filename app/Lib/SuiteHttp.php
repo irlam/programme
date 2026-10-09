@@ -76,6 +76,7 @@ final class SuiteHttp
         }
         if (!in_array($method, ['GET','POST','DELETE'], true)) $this->deny(405);
         if ($method !== 'GET') {
+            if (!empty($user['read_only'])) $this->deny(403);
             $roles = $route === '/api/comments.php' ? ['admin','planner','commenter'] : ['admin','planner'];
             if (!in_array($user['role'], $roles, true)) $this->deny(403);
             $this->csrf();

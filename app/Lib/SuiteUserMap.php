@@ -26,7 +26,7 @@ final class SuiteUserMap
             }
         }
         $roles = ['platform_admin'=>'admin','admin'=>'planner','manager'=>'planner',
-            'site_manager'=>'planner','user'=>'commenter','contractor'=>'commenter'];
+            'site_manager'=>'planner','user'=>'commenter','contractor'=>'commenter','viewer'=>'commenter'];
         $role = $roles[$identity['role'] ?? ''] ?? null;
         if (($identity['module_key'] ?? '') !== 'programme' || $role === null
             || ($identity['local_role'] ?? null) !== $role
@@ -71,7 +71,7 @@ final class SuiteUserMap
             $update->execute([$name[0],$role,$localId]);
             $this->pdo->commit();
             return ['id'=>(int)$localId,'name'=>$name[0],'email'=>$existing['email'],
-                'role'=>$role,'suite_user_id'=>$identity['user_id']];
+                'role'=>$role,'suite_user_id'=>$identity['user_id'],'read_only'=>$identity['role']==='viewer'];
         } catch (Throwable $e) {
             if ($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw new RuntimeException('Suite user mapping could not be verified.', 0, $e);

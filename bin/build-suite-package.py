@@ -13,11 +13,13 @@ PUBLIC_PHP = [
     'admin/index.php','admin/baselines.php','admin/holidays.php','admin/templates.php',
 ]
 SUPPORT = ['api/_bootstrap.php','app/suite-prepend.php','app/config/config.php','app/config/DB.php']
-SUPPORT += ['app/Lib/'+name+'.php' for name in ['SuiteGateway','SuiteUserMap','SuiteSession','SuiteHttp','Scheduler','WorkingDays','ImportLookahead']]
+SUPPORT += ['app/Lib/'+name+'.php' for name in ['SuiteBinding','SuiteGateway','SuiteUserMap','SuiteSession','SuiteHttp','SuitePreflight','Scheduler','WorkingDays','ImportLookahead','ShortTermReport']]
 SUPPORT += ['app/Lib/fpdf/fpdf.php']
 STATIC = ['index.html','lookahead.html','analytics.html','admin/import.html',
     'assets/programme-mark.svg','assets/css/chrome.css','assets/css/workspace.css',
-    'assets/js/workspace.js','assets/js/chrome.js','assets/js/analytics.js']
+    'assets/js/workspace.js','assets/js/chrome.js','assets/js/analytics.js',
+    'assets/js/programme-pdf.js','assets/vendor/pdfjs/pdf.min.js',
+    'assets/vendor/pdfjs/pdf.worker.min.js','assets/vendor/pdfjs/LICENSE']
 
 APACHE = '''Options -Indexes
 RewriteEngine On
@@ -56,7 +58,7 @@ def guarded(name, data):
     return (text[:match.end()]+guard+text[match.end():]).encode()
 
 def navigation(data):
-    return data.replace(b'/admin/users.php',b'https://suite.defecttracker.uk/').replace(b'Team & access',b'Suite dashboard').replace(b'Manage programme accounts and their existing permissions.',b'Manage your team and project access through Construction Suite.').replace(b'Manage team',b'Open Suite')
+    return data.replace(b'/admin/users.php',b'https://suite.defecttracker.uk/').replace(b'href="https://suite.defecttracker.uk/" data-requires-edit hidden',b'href="https://suite.defecttracker.uk/"').replace(b'Team & access',b'Suite dashboard').replace(b'Manage programme accounts and their existing permissions.',b'Manage your team and project access through Construction Suite.').replace(b'Manage team',b'Open Suite')
 
 def help_page(title, content):
     return ('''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'''+title+''' · Programme</title><link rel="icon" href="/assets/programme-mark.svg"><link rel="stylesheet" href="/assets/css/workspace.css"></head><body><main style="max-width:640px;margin:12vh auto;padding:24px"><img src="/assets/programme-mark.svg" width="52" alt="Programme"><h1>'''+title+'''</h1><p>'''+content+'''</p><p><a class="btn primary" href="/suite-login.php">Sign in through Construction Suite</a></p><p><a href="/">Programme</a> · <a href="https://suite.defecttracker.uk/">Suite dashboard</a></p></main></body></html>''').encode()
@@ -80,6 +82,7 @@ def build(destination):
     files['httpdocs/.htaccess']=APACHE.encode()
     files['deployment/nginx-rules.conf']=NGINX.encode()
     files['deployment/README.md']=source('docs/SUITE-HTTP-DEPLOYMENT.md')
+    files['deployment/suite-preflight.php']=source('bin/suite-preflight.php')
     manifest={'format':1,'staging_only':True,'tenant_ready':False,
         'public_php':PUBLIC_PHP,'files':{name:hashlib.sha256(data).hexdigest() for name,data in sorted(files.items())}}
     files['deployment/manifest.json']=(json.dumps(manifest,indent=2,sort_keys=True)+'\n').encode()
@@ -95,3 +98,4 @@ def build(destination):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('destination')
     args=parser.parse_args();print(json.dumps(build(args.destination)))
+

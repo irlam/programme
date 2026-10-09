@@ -11,3 +11,5 @@
 
 /Database/database.sql
 /tools/*k87747*.sql
+
+/app/config/runtime.suite.private.php
