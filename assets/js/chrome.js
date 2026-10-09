@@ -1,7 +1,7 @@
 /* Shared navigation for the existing import and project control screens. */
 (() => {
   const path=location.pathname;
-  const links=[['/index.html','▤','Programme'],['/lookahead.html','▦','Lookahead'],['/analytics.html','▥','Analytics'],['/admin/import.html','↥','Import programme'],['/admin/baselines.php','◎','Baselines & variance'],['/admin/holidays.php','□','Working calendar'],['/admin/templates.php','▧','Templates'],['/admin/users.php','♧','Team & access']];
+  const links=[['/index.html','▤','Programme'],['/lookahead.html','▦','Lookahead'],['/analytics.html','▥','Analytics'],['/admin/import.html','↥','Import programme'],['/admin/baselines.php','◎','Baselines & variance'],['/admin/holidays.php','□','Working calendar'],['/admin/templates.php','▧','Templates'],['https://suite.defecttracker.uk/','♧','Suite dashboard']];
   const nav=document.createElement('aside');nav.className='sidebar';nav.setAttribute('aria-label','Main navigation');
   nav.innerHTML='<a href="/" class="brand"><img src="/assets/programme-mark.svg" alt=""><span>Programme<small>DefectTracker suite</small></span></a><div class="nav-label">Workspace & controls</div><nav>'+links.map(([url,icon,label])=>`<a href="${url}" ${url.startsWith('/admin/')?'data-requires-edit hidden':''} ${path===url?'class="active" aria-current="page"':''}><span class="nav-icon" aria-hidden="true">${icon}</span>${label}</a>`).join('')+'</nav><div class="sidebar-foot">Built for the working day.<br><a href="/about.html">Help & guidance ↗</a><br><a href="/links.html">All tools & exports ↗</a></div>';
   document.body.prepend(nav);document.body.classList.add('legacy-page');

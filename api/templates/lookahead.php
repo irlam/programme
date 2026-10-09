@@ -1,5 +1,7 @@
 <?php
 declare(strict_types=1);
+require_once dirname(__DIR__, 2) . '/app/suite-prepend.php';
+
 
 /**
  * 6-Week Lookahead (calendar grid) — ultra-safe generator
