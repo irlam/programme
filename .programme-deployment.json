@@ -711,7 +711,7 @@
     "suite-login.php": "74c951590169476d9b9e06c1012c8c6f36be533b528a142ceae66095abadc315"
   },
   "format": 1,
-  "source_commit": "eda3a4f6a97ce48ca42dc372b239a4cc01ca300d",
+  "source_commit": "a40874adffa0ee2cfb46ca4afb3bc24003a8b410",
   "staging_only": true,
   "tenant_ready": false
 }
