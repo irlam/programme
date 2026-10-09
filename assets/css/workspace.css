@@ -9,3 +9,10 @@
 
 /* Keep restricted navigation out of keyboard and mobile menus. */
 [data-requires-edit][hidden]{display:none!important}
+
+/* Meeting progress overlay never intercepts activity editing or scrolling. */
+.meeting-controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 22px;border-bottom:1px solid var(--line);background:#fff}
+.meeting-controls label{display:flex;align-items:center;gap:6px;font-size:11px}.meeting-controls input[type=date]{padding:5px 8px;font-size:11px}.meeting-controls>span{flex:1;min-width:220px;font-size:11px;color:var(--muted)}.meeting-controls .btn{font-size:11px}
+.progress-drop{position:absolute;inset:0;width:100%;height:62px;pointer-events:none;z-index:2;overflow:hidden;fill:none;stroke:#c62828;stroke-width:2;vector-effect:non-scaling-stroke}.progress-drop .review-reference{stroke-width:1;stroke-dasharray:4 3;opacity:.65}.progress-drop circle{fill:#c62828;stroke:#fff;stroke-width:1}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media print{.meeting-controls input,.meeting-controls .btn{display:none!important}.progress-drop{print-color-adjust:exact}}

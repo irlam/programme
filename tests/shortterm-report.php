@@ -52,4 +52,17 @@ if (substr_count($data, '0.376 0.647 0.980 rg') !== 2) throw new RuntimeExceptio
 $pdf->Output('F', $output . '/edge-dates.pdf');
 $pdf = new ShortTermReport('Empty window', $dates, 'apartment');
 $pdf->render([]); $pdf->Output('F', $output . '/empty.pdf');
+$pdf = new ShortTermReport('Meeting progress', ['2026-11-02','2026-11-03','2026-11-04','2026-11-05','2026-11-06'], 'apartment', '2026-11-04');
+$progressTasks = [];
+foreach ([0, 20, 80, 100] as $progress) $progressTasks[] = ['name'=>'Meeting task ' . $progress, 'start_date'=>'2026-11-02', 'finish_date'=>'2026-11-06', 'operatives'=>2, 'percent_complete'=>$progress];
+$progressTasks[] = ['name'=>'Future activity', 'start_date'=>'2026-11-05', 'finish_date'=>'2026-11-06', 'operatives'=>2, 'percent_complete'=>0];
+$pdf->render(['Meeting section'=>$progressTasks]); checkBounds($pdf);
+$data=$pdf->Output('S');
+foreach (['Progress: 0% - behind review date','Progress: 80% - ahead of review date','Progress: 100% - complete','Progress: 0% - not due yet','0.776 0.157 0.157 RG'] as $expected) {
+    if (!str_contains($data, $expected)) throw new RuntimeException('Missing progress state or red line: ' . $expected);
+}
+$pdf->Output('F', $output . '/progress.pdf');
+$pdf = new ShortTermReport('Review outside window', ['2026-11-02','2026-11-03'], 'apartment', '2026-12-01');
+$pdf->render(['Meeting section'=>$progressTasks]);checkBounds($pdf);
+if (str_contains($pdf->Output('S'), '0.776 0.157 0.157 RG')) throw new RuntimeException('Review outside window drew a false line');
 echo "PASS: short-term report generation, 14/42/84-day windows, long names, multi-page rows, sections, weekend dates, same-day activities and empty window\n";

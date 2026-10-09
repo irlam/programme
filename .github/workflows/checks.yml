@@ -27,7 +27,9 @@ jobs:
         if: hashFiles('tests/suite-user-map.php') != ''
         run: php tests/suite-user-map.php
       - name: Short-term PDF rendering
-        run: php tests/shortterm-report.php
+        run: |
+          php tests/shortterm-report.php
+          python3 tests/shortterm-window.py
       - name: Schedule regressions
         run: python3 tests/schedule_regression.py
       - name: Suite server session boundaries

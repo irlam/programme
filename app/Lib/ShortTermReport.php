@@ -11,12 +11,14 @@ final class ShortTermReport extends \FPDF
     private array $widths = [100.0, 12.0, 22.0, 22.0, 117.0];
     private float $bottom = 194.0;
     private float $lineHeight = 4.2;
+    private ?string $reviewDate;
 
-    public function __construct(string $project, array $dates, string $group)
+    public function __construct(string $project, array $dates, string $group, ?string $reviewDate = null)
     {
         parent::__construct('L', 'mm', 'A4');
         $this->project = self::encode($project);
         $this->dates = array_values($dates);
+        $this->reviewDate = $reviewDate;
         $this->group = $group === 'contractor' ? 'Contractor' : 'Section / location';
         $this->SetMargins(12, 12, 12);
         $this->SetAutoPageBreak(false);
@@ -69,6 +71,14 @@ final class ShortTermReport extends \FPDF
         $this->Cell(0, 5, 'Window: ' . self::uk($this->dates[0]) . ' - ' . self::uk(end($this->dates)) . '  |  ' . count($this->dates) . ' working days', 0, 1);
         $this->SetFont('Arial', '', 7.5);
         $this->Cell(0, 4.5, 'Edge triangles: activity continues outside this window. Timeline uses working days.', 0, 1);
+        if ($this->reviewDate !== null) {
+            $this->SetTextColor(198, 40, 40);
+            $this->Cell(0, 4.5, 'Red progress line - review at end of ' . self::uk($this->reviewDate) . ': left = behind; right = ahead.', 0, 1);
+            $this->SetTextColor(51, 65, 85);
+            $this->Cell(0, 4.5, $this->reviewInWindow()
+                ? 'Indicative: latest recorded % complete spread across scheduled calendar dates, not a historical snapshot.'
+                : 'Review date is outside this window; red line omitted. Choose a window containing the review date.', 0, 1);
+        }
         $this->Ln(2);
         $this->SetFont('Arial', 'B', 9);
         $this->SetFillColor(17, 24, 39); $this->SetTextColor(255, 255, 255);
@@ -78,11 +88,12 @@ final class ShortTermReport extends \FPDF
         $x = 12 + array_sum(array_slice($this->widths, 0, 4));
         $y = $this->GetY(); $w = $this->widths[4];
         $this->SetFont('Arial', '', 7); $this->SetTextColor(51, 65, 85);
-        $this->SetFillColor(241, 245, 249); $this->Rect($x, $y, $w, 8, 'F');
-        $lastRight = $x - 1;
+        $axisH = $this->reviewDate !== null ? 12 : 8;
+        $this->SetFillColor(241, 245, 249); $this->Rect($x, $y, $w, $axisH, 'F');
+        $lastRight = $x - 5;
         $cell = $w / count($this->dates);
         foreach ($this->dates as $i => $date) {
-            if ($i !== 0 && substr($date, 0, 7) === substr($this->dates[$i - 1], 0, 7)
+            if (count($this->dates) > 14 && $i !== 0 && substr($date, 0, 7) === substr($this->dates[$i - 1], 0, 7)
                 && (new \DateTimeImmutable($date))->format('N') !== '1') continue;
             $label = (new \DateTimeImmutable($date))->format('d/m');
             $left = $x + $i * $cell + 0.5;
@@ -90,7 +101,13 @@ final class ShortTermReport extends \FPDF
             if ($left < $lastRight + 2 || $left + $labelW > $x + $w - 0.5) continue;
             $this->Text($left, $y + 5, $label); $lastRight = $left + $labelW;
         }
-        $this->SetY($y + 8);
+        if ($this->reviewDate !== null && $this->reviewInWindow()) {
+            $ref = $x + $this->axis($this->dayOffset($this->reviewDate) + 1) * $cell;
+            $label = 'Review ' . (new \DateTimeImmutable($this->reviewDate))->format('d/m');
+            $left = max($x + .5, min($x + $w - $this->GetStringWidth($label) - .5, $ref - $this->GetStringWidth($label) / 2));
+            $this->SetTextColor(198, 40, 40); $this->Text($left, $y + 10, $label);
+        }
+        $this->SetY($y + $axisH);
     }
 
     public function Footer()
@@ -147,6 +164,48 @@ final class ShortTermReport extends \FPDF
             }
         }
         $this->SetDrawColor(203, 213, 225); $this->Rect($x, $y, $w, $h);
+        if ($this->reviewDate !== null && $this->reviewInWindow()) {
+            $reference = $this->dayOffset($this->reviewDate) + 1;
+            $point = $this->progressPoint($task);
+            $refX = $x + max(.4, min($w - .4, $this->axis($reference) * $cell));
+            $pointX = $x + max(.4, min($w - .4, $this->axis($point) * $cell));
+            $this->SetDrawColor(198, 40, 40); $this->SetLineWidth(.45);
+            $this->Line($refX, $y, $pointX, $y + $h / 2);
+            $this->Line($pointX, $y + $h / 2, $refX, $y + $h);
+            $this->SetLineWidth(.2);
+        }
+    }
+
+    private function reviewInWindow(): bool
+    {
+        return $this->reviewDate >= $this->dates[0] && $this->reviewDate <= end($this->dates);
+    }
+
+    private function dayOffset(string $date): int
+    {
+        return (int)(new \DateTimeImmutable($this->dates[0]))->diff(new \DateTimeImmutable($date))->format('%r%a');
+    }
+
+    private function progressPoint(array $task): float
+    {
+        $progress = max(0, min(100, (float)($task['percent_complete'] ?? 0)));
+        $reference = $this->dayOffset($this->reviewDate) + 1;
+        if ($progress >= 100 || ($task['start_date'] > $this->reviewDate && $progress <= 0)) return (float)$reference;
+        $start = $this->dayOffset($task['start_date']);
+        $span = $this->dayOffset($task['finish_date']) - $start + 1;
+        return $start + $span * $progress / 100;
+    }
+
+    /** Compress calendar positions onto the visible working-day axis. */
+    private function axis(float $point): float
+    {
+        if ($point <= 0) return 0;
+        foreach ($this->dates as $i => $date) {
+            $offset = $this->dayOffset($date);
+            if ($point <= $offset) return (float)$i;
+            if ($point < $offset + 1) return $i + $point - $offset;
+        }
+        return (float)count($this->dates);
     }
 
     public function render(array $bucketed): void
@@ -166,6 +225,13 @@ final class ShortTermReport extends \FPDF
                 $cells = [$this->lines(self::encode((string)$task['name']), $this->widths[0] - 4),
                     $this->lines((string)(int)$task['operatives'], $this->widths[1] - 4),
                     [self::uk($task['start_date'])], [self::uk($task['finish_date'])]];
+                if ($this->reviewDate !== null) {
+                    $progress = max(0, min(100, (int)($task['percent_complete'] ?? 0)));
+                    $difference = $this->progressPoint($task) - ($this->dayOffset($this->reviewDate) + 1);
+                    $state = $progress >= 100 ? 'complete' : ($task['start_date'] > $this->reviewDate && $progress === 0 ? 'not due yet'
+                        : ($difference < -.01 ? 'behind review date' : ($difference > .01 ? 'ahead of review date' : 'on review date')));
+                    $cells[0][] = 'Progress: ' . $progress . '% - ' . $state;
+                }
                 $offset = 0; $count = max(array_map('count', $cells));
                 do {
                     $capacity = (int)floor(($this->bottom - $this->GetY() - 3) / $this->lineHeight);

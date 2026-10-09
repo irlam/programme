@@ -23,6 +23,15 @@ $group   = ($_GET['group'] ?? 'apartment');
 $from    = $_GET['from'] ?? date('Y-m-d');
 $format  = ($_GET['format'] ?? 'pdf');
 $nofpdf  = isset($_GET['nofpdf']) && $_GET['nofpdf'] == '1';
+$progressLine = ($_GET['progress_line'] ?? '') === '1';
+$statusDate = (string)($_GET['status_date'] ?? '');
+if ($progressLine && !preg_match('/^\d{4}-\d{2}-\d{2}$/D', $statusDate)) {
+  http_response_code(400); exit('Choose a valid review date.');
+}
+if ($progressLine) {
+  $checkDate = DateTimeImmutable::createFromFormat('!Y-m-d', $statusDate);
+  if (!$checkDate || $checkDate->format('Y-m-d') !== $statusDate) { http_response_code(400); exit('Choose a valid review date.'); }
+}
 
 $proj = $pdo->prepare("SELECT start_date, calendar_id, name FROM projects WHERE id=?");
 $proj->execute([$project]);
@@ -34,10 +43,16 @@ $start = new DateTimeImmutable($from);
 
 $dates = [];
 $d = $start;
+// New workspace links use the same calendar-day window shown on screen.
+// Existing API links retain their working-day window semantics.
+$calendarWindow = ($_GET['calendar_window'] ?? '') === '1';
+$calendarEnd = $start->add(new DateInterval('P' . ($days - 1) . 'D'));
 while (count($dates) < $days) {
+  if ($calendarWindow && $d > $calendarEnd) break;
   if ($wd->isWorkingDay($d)) $dates[] = $d->format('Y-m-d');
   $d = $d->add(new DateInterval('P1D'));
 }
+if (!$dates) { http_response_code(400); exit('No working days in this window. Choose a different date window.'); }
 $winStart = reset($dates);
 $winEnd   = end($dates);
 
@@ -140,7 +155,7 @@ if ($fpdfPath && !$nofpdf) {
   require_once $fpdfPath;
 
   require_once dirname(__DIR__, 2) . '/app/Lib/ShortTermReport.php';
-  $pdf = new \App\Lib\ShortTermReport((string)$p['name'], $dates, (string)$group);
+  $pdf = new \App\Lib\ShortTermReport((string)$p['name'], $dates, (string)$group, $progressLine ? $statusDate : null);
   $pdf->render($bucketed);
 
   header('Content-Type: application/pdf');

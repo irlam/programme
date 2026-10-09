@@ -63,6 +63,12 @@
     const project = state.project?.id || 1;
     const days = $('window').value, from = $('from').value, group = $('group').value === 'contractor' ? 'contractor' : 'apartment';
     const queries = new URLSearchParams({project, days, from, group});
+    if ($('drop-line').checked) {
+      queries.set('progress_line', '1');
+      queries.set('status_date', $('review-date').value || state.today);
+    }
+    // The workspace selects calendar days; older export links select working days.
+    queries.set('calendar_window', '1');
     const urls = {csv:`/api/export/csv.php?project=${project}`, tasklist:`/api/export/tasklist_xlsx.php?project=${project}`, lookahead:`/api/export/lookahead_xlsx.php?${queries}`, shortterm:`/api/export/shortterm.php?${queries}`};
     document.querySelectorAll('[data-export]').forEach(a => a.href = urls[a.dataset.export]);
   }
@@ -80,6 +86,10 @@
     updateView(); updateExports();
     if (!state.loaded) return;
     const start = $('from').value, days = Number($('window').value), end = addDays(start,days-1);
+    const review = $('review-date').value || state.today;
+    $('drop-note').textContent = $('drop-line').checked && (review < start || review > end)
+      ? 'Review date is outside this window. Change the window to see the red line.'
+      : 'Uses the latest recorded % complete, spread across scheduled dates. Left = behind; right = ahead. Not a historical snapshot.';
     $('date-label').textContent = `${format(start).replace(/ \d{4}$/,'')} – ${format(end).replace(/ \d{4}$/,'')}`;
     const tasks = filtered();
     const visible = state.view === 'list' ? tasks : tasks.filter(t=>t.start_date && t.finish_date && t.start_date<=end && t.finish_date>=start);
@@ -105,7 +115,11 @@
       if(weekend) bands += `<span class="weekend-band" style="left:${i*cell}px"></span>`;
     }
     const todayIndex = dayDiff(start,state.today);
-    if(todayIndex>=0 && todayIndex<days) bands += `<span class="today-line" style="left:${todayIndex*cell}px"></span>`;
+    if(!$('drop-line').checked && todayIndex>=0 && todayIndex<days) bands += `<span class="today-line" style="left:${todayIndex*cell}px"></span>`;
+    const review = $('review-date').value || state.today;
+    const reviewIndex = dayDiff(start,review) + 1; // Review at the end of the selected day.
+    const showDrop = $('drop-line').checked && reviewIndex > 0 && reviewIndex <= days;
+    const refX = Math.min(width - 1, reviewIndex * cell);
     const groupBy = $('group').value;
     const groups = new Map();
     tasks.forEach(t => { const key = groupBy==='contractor' ? t.contractor||'Unassigned' : locationName(t); if(!groups.has(key)) groups.set(key,[]); groups.get(key).push(t); });
@@ -117,11 +131,23 @@
         const right = Math.min(days,dayDiff(start,t.finish_date)+1)*cell;
         const label = `${t.is_milestone ? 'Milestone: ' : ''}${t.name} · ${t.contractor||'Unassigned'} · ${format(t.start_date)} to ${format(t.finish_date)} · ${t.percent_complete}% complete`;
         let baseline = '';
+        let drop = '';
+        if (showDrop) {
+          const progress = Math.max(0, Math.min(100, Number(t.percent_complete) || 0));
+          const taskStart = dayDiff(start,t.start_date);
+          const taskSpan = dayDiff(t.start_date,t.finish_date) + 1;
+          const point = progress >= 100 || (t.start_date > review && progress === 0)
+            ? reviewIndex : taskStart + taskSpan * progress / 100;
+          const px = Math.max(1, Math.min(width - 1, point * cell));
+          const behind = point < reviewIndex - .01;
+          const description = `${progress}% complete · ${behind ? 'Behind' : point > reviewIndex + .01 ? 'Ahead' : 'On'} review date ${format(review)} · indicative comparison`;
+          drop = `<svg class="progress-drop" viewBox="0 0 ${width} 62" preserveAspectRatio="none" aria-hidden="true"><line x1="${refX}" x2="${refX}" y1="0" y2="62" class="review-reference"/><polyline points="${refX},0 ${px},31 ${refX},62"/><circle cx="${px}" cy="31" r="3"/></svg><span class="sr-only">${esc(description)}</span>`;
+        }
         if($('baseline').checked && t.baseline_start && t.baseline_finish) {
           const bl = Math.max(0,dayDiff(start,t.baseline_start))*cell, br = Math.min(days,dayDiff(start,t.baseline_finish)+1)*cell;
           if(br>bl) baseline = `<span class="baseline-bar" title="Baseline: ${format(t.baseline_start)} – ${format(t.baseline_finish)}" style="left:${bl}px;width:${br-bl}px"></span>`;
         }
-        rows += `<div class="timeline-label"><button data-task="${t.id}" title="${esc(label)}"><span class="task-name">${esc(t.name)}</span><small>${esc(groupBy==='contractor'?locationName(t):t.contractor||'Unassigned')}${t.zone ? ` · ${esc(t.zone)}` : ''}</small></button></div><div class="timeline-lane">${bands}${baseline}<button class="task-bar ${t.status}" data-task="${t.id}" data-bar="true" data-editable="${state.editable}" aria-label="${esc(label)}" title="${esc(label)}" style="left:${left}px;width:${Math.max(5,right-left)}px"><span class="bar-progress" style="width:${t.percent_complete}%"></span><span class="bar-text">${t.is_milestone ? '◆ ' : ''}${esc(t.name)}${right-left>150 ? ` · ${t.percent_complete}%` : ''}</span>${state.editable && t.finish_date<=addDays(start,days-1) ? '<span class="resize-handle" aria-hidden="true"></span>' : ''}</button></div>`;
+        rows += `<div class="timeline-label"><button data-task="${t.id}" title="${esc(label)}"><span class="task-name">${esc(t.name)}</span><small>${esc(groupBy==='contractor'?locationName(t):t.contractor||'Unassigned')}${t.zone ? ` · ${esc(t.zone)}` : ''}${showDrop ? ` · ${t.percent_complete}% complete` : ''}</small></button></div><div class="timeline-lane">${bands}${baseline}<button class="task-bar ${t.status}" data-task="${t.id}" data-bar="true" data-editable="${state.editable}" aria-label="${esc(label)}" title="${esc(label)}" style="left:${left}px;width:${Math.max(5,right-left)}px"><span class="bar-progress" style="width:${t.percent_complete}%"></span><span class="bar-text">${t.is_milestone ? '◆ ' : ''}${esc(t.name)}${right-left>150 ? ` · ${t.percent_complete}%` : ''}</span>${state.editable && t.finish_date<=addDays(start,days-1) ? '<span class="resize-handle" aria-hidden="true"></span>' : ''}</button>${drop}</div>`;
       }
     }
     $('content').innerHTML = `<div class="timeline-scroll"><div class="timeline-grid" style="--timeline-width:${width}px;--day:${cell}px"><div class="timeline-label head">Activity / ${groupBy==='contractor'?'location':'contractor'}</div><div class="timeline-dates">${headers}</div>${rows}</div></div>`;
@@ -136,6 +162,7 @@
       if (request !== state.request) return;
       const changed = state.project?.id !== result.project.id;
       state.tasks = result.tasks; state.contractors = result.contractors || []; state.projects = result.projects; state.project = result.project; state.today = result.today; state.loaded = true;
+      if (!$('review-date').value) $('review-date').value = state.today;
       $('project').innerHTML = state.projects.map(p=>`<option value="${Number(p.id)}">${esc(p.name)}</option>`).join('');
       $('project').value = String(state.project.id);
       $('project-subtitle').textContent = `${state.project.name} · Plan, coordinate and track your construction programme.`;
@@ -244,7 +271,7 @@
   };
   document.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>{state.view=button.dataset.view;render();});
   $('search').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(render,120);});
-  ['floor','contractor','status','window','zoom','group','baseline'].forEach(id=>$(id).addEventListener('change',render));
+  ['floor','contractor','status','window','zoom','group','baseline','drop-line','review-date'].forEach(id=>$(id).addEventListener('change',render));
   $('block').onchange=()=>{filterOptions();render();};
   $('from').onchange=()=>{if($('from').value) render();};
   $('clear-filters').onclick=()=>{['search','block','floor','contractor','status'].forEach(id=>$(id).value='');filterOptions();render();};
