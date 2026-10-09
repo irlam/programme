@@ -5,6 +5,7 @@
   <title>Import Programme</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    [hidden]{display:none!important}
     :root { --bg:#0f172a; --panel:#0b1220; --line:#1f2937; --muted:#9ca3af; --accent:#93c5fd; }
     html,body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#e5e7eb}
     header{padding:14px 16px;background:#111827;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
@@ -63,14 +64,14 @@
     <div class="card">
       <h3 style="margin:0 0 8px 0">Upload file</h3>
       <p class="muted" style="margin-top:0">
-        Accepts <strong>.xlsx</strong> (PhpSpreadsheet required) or <strong>.csv</strong>.
+        Accepts <strong>.pdf</strong> printed programmes with Line, Name, Start, Finish and Duration columns, <strong>.xlsx</strong>, or <strong>.csv</strong>.
         Use a simple <em>task list</em> (Task/Activity, Contractor, Start, Finish, Duration) or a <em>lookahead grid</em>.
       </p>
 
       <div class="grid">
         <div>
-          <label>File (.xlsx or .csv)</label>
-          <input id="file" type="file" accept=".xlsx,.xlsm,.xls,.csv" />
+          <label>File (.pdf, .xlsx or .csv)</label>
+          <input id="file" type="file" accept=".pdf,.xlsx,.csv" />
         </div>
         <div>
           <label>Project ID</label>
@@ -148,6 +149,8 @@
 
     <!-- Preview -->
     <div id="preview" class="card" style="display:none">
+      <p id="pdf-notes" class="hint" hidden></p>
+      <label id="pdf-review-label" hidden><input id="pdf-review" type="checkbox"> I have checked the extracted PDF activities, dates and durations.</label>
       <h3 style="margin:0 0 8px 0">Preview</h3>
       <div id="det" class="muted"></div>
       <div style="overflow:auto;max-height:420px;border:1px solid var(--line);border-radius:8px;margin-top:8px">
@@ -162,7 +165,18 @@
 
 <script>
 let __preview = null;
+let __pdfMeta = null;
 let __debugOn = false;
+
+async function importCsrf() {
+  const res = await fetch('/api/auth.php?action=whoami', {cache:'no-store', credentials:'same-origin'});
+  const who = await res.json().catch(() => null);
+  if (!res.ok || !who || !who.ok || typeof who.csrf !== 'string' || !who.csrf) {
+    throw new Error('Sign in to this project again, then retry.');
+  }
+  if (who.user && who.user.read_only) throw new Error('This account has read-only access.');
+  return who.csrf;
+}
 
 document.getElementById('debugBtn').onclick = () => {
   __debugOn = !__debugOn;
@@ -175,11 +189,25 @@ document.getElementById('previewBtn').onclick = async () => {
   const dbg = document.getElementById('debugPre');
   status.textContent = '';
   dbg.textContent = '';
+  __preview = null; __pdfMeta = null;
+  document.getElementById('pdf-review').checked = false;
+  document.getElementById('preview').style.display = 'none';
 
   if (!f) { status.textContent = 'Choose a file first.'; return; }
 
+  let uploadFile = f;
+  try {
+    await importCsrf();
+    if (/\.pdf$/i.test(f.name)) {
+      status.textContent = 'Reading programme PDF…';
+      const pdf = await import('/assets/js/programme-pdf.js');
+      __pdfMeta = await pdf.extractProgrammePdf(f);
+      uploadFile = new File([pdf.programmeCsv(__pdfMeta)], 'programme-extracted.csv', {type:'text/csv'});
+      document.getElementById('autoFS').checked = false;
+    }
+  } catch(e) { status.textContent = 'Failed: ' + (e.message || 'Unable to read this file.'); return; }
   const fd = new FormData();
-  fd.append('file', f);
+  fd.append('file', uploadFile);
   fd.append('project', document.getElementById('project').value || '1');
   fd.append('ignore_weekends', document.getElementById('ignoreWeekends').checked ? '1' : '0');
   fd.append('split_spans', document.getElementById('splitSpans').checked ? '1' : '0');
@@ -191,14 +219,15 @@ document.getElementById('previewBtn').onclick = async () => {
   fd.append('assist_base_date',  (document.getElementById('assistBaseDate').value || '').trim());
 
   status.textContent = 'Uploading…';
-  const url = '/api/import/preview.php' + (__debugOn ? '?debug=1' : '');
+  const url = '/api/import/preview.php';
   let res, txt, j = null;
   try {
-    res = await fetch(url, { method:'POST', body: fd });
+    const csrf = await importCsrf();
+    res = await fetch(url, { method:'POST', credentials:'same-origin', headers:{'X-CSRF':csrf}, body: fd });
     txt = await res.text();
     try { j = JSON.parse(txt); } catch { j = null; }
   } catch (e) {
-    status.textContent = 'Failed: network error';
+    status.textContent = 'Failed: ' + (e.message || 'network error');
     if (__debugOn) dbg.textContent = String(e);
     return;
   }
@@ -206,7 +235,7 @@ document.getElementById('previewBtn').onclick = async () => {
   if (__debugOn) dbg.textContent = txt || '(empty response)';
 
   if (!res.ok || !j) {
-    status.textContent = 'Failed: server error';
+    status.textContent = 'Failed: ' + (j && j.error ? j.error : 'server error') + ' (HTTP ' + res.status + ')';
     document.getElementById('preview').style.display='none';
     return;
   }
@@ -217,6 +246,10 @@ document.getElementById('previewBtn').onclick = async () => {
   }
 
   status.textContent = 'OK';
+  const notes = document.getElementById('pdf-notes');
+  notes.hidden = !__pdfMeta;
+  document.getElementById('pdf-review-label').hidden = !__pdfMeta;
+  if (__pdfMeta) notes.textContent = `PDF: ${__pdfMeta.source_rows} rows, ${__pdfMeta.tasks.length} activities. ` + __pdfMeta.warnings.join(' ');
   __preview = j;
   renderPreview(j);
 };
@@ -244,6 +277,7 @@ document.getElementById('importBtn').onclick = async () => {
   const status = document.getElementById('importStatus');
   status.textContent = 'Importing…';
   if (!__preview) { status.textContent = 'No preview'; return; }
+  if (__pdfMeta && !document.getElementById('pdf-review').checked) { status.textContent = 'Check the PDF preview and tick the review box before importing.'; return; }
 
   const payload = {
     project: document.getElementById('project').value || '1',
@@ -264,10 +298,10 @@ document.getElementById('importBtn').onclick = async () => {
   };
 
   try {
-    const who = await (await fetch('/api/auth.php?action=whoami')).json();
+    const csrf = await importCsrf();
     const res = await fetch('/api/import/commit.php', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-CSRF':who.csrf},
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRF':csrf},
       body: JSON.stringify(payload)
     });
     const j = await res.json().catch(()=>null);
@@ -285,3 +319,4 @@ function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;',
 </script>
 </body>
 </html>
+

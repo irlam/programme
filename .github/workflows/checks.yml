@@ -53,3 +53,8 @@ jobs:
         run: npm install --prefix "$RUNNER_TEMP/programme-dom" --no-save --ignore-scripts jsdom@26.1.0
       - name: Workspace and client navigation regressions
         run: PROGRAMME_TEST_JSDOM="$RUNNER_TEMP/programme-dom/node_modules/jsdom" node tests/workspace_dom.cjs
+
+      - name: Programme PDF extraction and import authentication
+        run: |
+          node tests/programme_pdf.mjs
+          PROGRAMME_TEST_JSDOM="$RUNNER_TEMP/programme-dom/node_modules/jsdom" node tests/import_dom.cjs

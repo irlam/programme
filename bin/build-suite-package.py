@@ -17,7 +17,9 @@ SUPPORT += ['app/Lib/'+name+'.php' for name in ['SuiteBinding','SuiteGateway','S
 SUPPORT += ['app/Lib/fpdf/fpdf.php']
 STATIC = ['index.html','lookahead.html','analytics.html','admin/import.html',
     'assets/programme-mark.svg','assets/css/chrome.css','assets/css/workspace.css',
-    'assets/js/workspace.js','assets/js/chrome.js','assets/js/analytics.js']
+    'assets/js/workspace.js','assets/js/chrome.js','assets/js/analytics.js',
+    'assets/js/programme-pdf.js','assets/vendor/pdfjs/pdf.min.js',
+    'assets/vendor/pdfjs/pdf.worker.min.js','assets/vendor/pdfjs/LICENSE']
 
 APACHE = '''Options -Indexes
 RewriteEngine On
