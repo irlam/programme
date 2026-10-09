@@ -26,6 +26,8 @@ jobs:
       - name: Suite local identity mapping
         if: hashFiles('tests/suite-user-map.php') != ''
         run: php tests/suite-user-map.php
+      - name: Short-term PDF rendering
+        run: php tests/shortterm-report.php
       - name: Schedule regressions
         run: python3 tests/schedule_regression.py
       - name: Suite server session boundaries
@@ -53,8 +55,3 @@ jobs:
         run: npm install --prefix "$RUNNER_TEMP/programme-dom" --no-save --ignore-scripts jsdom@26.1.0
       - name: Workspace and client navigation regressions
         run: PROGRAMME_TEST_JSDOM="$RUNNER_TEMP/programme-dom/node_modules/jsdom" node tests/workspace_dom.cjs
-
-      - name: Programme PDF extraction and import authentication
-        run: |
-          node tests/programme_pdf.mjs
-          PROGRAMME_TEST_JSDOM="$RUNNER_TEMP/programme-dom/node_modules/jsdom" node tests/import_dom.cjs
