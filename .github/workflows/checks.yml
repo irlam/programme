@@ -57,3 +57,40 @@ jobs:
         run: npm install --prefix "$RUNNER_TEMP/programme-dom" --no-save --ignore-scripts jsdom@26.1.0
       - name: Workspace and client navigation regressions
         run: PROGRAMME_TEST_JSDOM="$RUNNER_TEMP/programme-dom/node_modules/jsdom" node tests/workspace_dom.cjs
+
+  plesk-staging:
+    needs: [php, workspace-dom]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/work/suite-read-only'
+    permissions:
+      contents: write
+    concurrency:
+      group: programme-plesk-staging
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: Validate and prepare Plesk staging tree
+        run: |
+          python3 tests/plesk-tree.py
+          python3 bin/build-plesk-tree.py "$RUNNER_TEMP/programme-plesk-files" --source-ref "$(git rev-parse HEAD)"
+          find "$RUNNER_TEMP/programme-plesk-files" -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Publish checked staging deployment branch
+        run: |
+          source_commit="$(git rev-parse HEAD)"
+          latest_source="$(git ls-remote origin refs/heads/work/suite-read-only | cut -f1)"
+          if [ "$source_commit" != "$latest_source" ]; then exit 0; fi
+          git fetch origin deploy/suite-staging
+          git worktree add --detach "$RUNNER_TEMP/programme-plesk-git" FETCH_HEAD
+          cd "$RUNNER_TEMP/programme-plesk-git"
+          git rm -r --ignore-unmatch .
+          cp -a "$RUNNER_TEMP/programme-plesk-files/." .
+          git add -A
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name='Programme deployment' -c user.email='programme-deploy@users.noreply.github.com' commit -m "Deploy checked Suite Programme $source_commit"
+          git push origin HEAD:refs/heads/deploy/suite-staging
