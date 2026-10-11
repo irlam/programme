@@ -32,6 +32,15 @@ final class SuiteHttp
             $this->deny(403);
         }
         if (session_status() !== PHP_SESSION_NONE) $this->deny(503);
+        // A foreign cookie must never open/delete another instance's PHP session.
+        $sessionDirectory = $this->binding['session_path'] ?? null;
+        $sessionRoot = is_string($sessionDirectory) ? realpath($sessionDirectory) : false;
+        $documentRoot = realpath((string)($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        if (!$sessionRoot || $sessionRoot !== $sessionDirectory || !is_dir($sessionRoot)
+            || is_link($sessionDirectory) || (fileperms($sessionRoot) & 0777) !== 0700
+            || !$documentRoot || $sessionRoot === $documentRoot
+            || str_starts_with($sessionRoot, $documentRoot.DIRECTORY_SEPARATOR)) $this->deny(503);
+        if (session_save_path($sessionRoot) === false) $this->deny(503);
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         session_name('__Host-programme_suite');
