@@ -31,6 +31,12 @@ final class SuiteHttp
             || strtolower((string)($_SERVER['HTTP_HOST'] ?? '')) !== $host) {
             $this->deny(403);
         }
+        if ($route === '/api/suite-summary.php') {
+            if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') $this->deny(405);
+            if (!hash_equals($this->binding['key'], (string)($_SERVER['HTTP_X_CONSTRUCTION_SUITE_KEY'] ?? ''))) $this->deny(401);
+            $GLOBALS['programme_summary_binding'] = $this->binding;
+            return;
+        }
         if (session_status() !== PHP_SESSION_NONE) $this->deny(503);
         // A foreign cookie must never open/delete another instance's PHP session.
         $sessionDirectory = $this->binding['session_path'] ?? null;
