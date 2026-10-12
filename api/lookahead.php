@@ -4,6 +4,7 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 
 use App\Config\DB;
+use App\Lib\Programmes;
 
 header('Content-Type: application/json');
 
@@ -11,6 +12,7 @@ function ok($data) { echo json_encode($data); exit; }
 function bad($msg, $code=400) { http_response_code($code); echo json_encode(['ok'=>false,'error'=>$msg]); exit; }
 
 $pdo = DB::pdo();
+$project=(int)($_GET['project']??1);$scope=Programmes::request($pdo,$project);
 
 // Parse query params
 $block = trim($_GET['block'] ?? '');
@@ -61,13 +63,13 @@ $sql = "SELECT t.id, t.name AS description, t.start_date, t.finish_date,
         FROM tasks t
         LEFT JOIN contractors c ON c.id = t.contractor_id
         LEFT JOIN apartments a ON a.id = t.apartment_id
-        WHERE t.project_id = 1
+        WHERE t.project_id = ? AND $scope
           AND t.start_date IS NOT NULL
           AND t.finish_date IS NOT NULL
           AND t.start_date <= ?
           AND t.finish_date >= ?";
 
-$params = [$to, $from];
+$params = [$project,$to, $from];
 
 // Filter by block if provided
 if ($block !== '') {
@@ -147,3 +149,4 @@ $response = [
 ];
 
 ok($response);
+

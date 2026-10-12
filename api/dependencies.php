@@ -4,6 +4,7 @@ require __DIR__ . '/_bootstrap.php';
 
 use App\Config\DB;
 use App\Lib\Scheduler;
+use App\Lib\Programmes;
 
 header('Content-Type: application/json');
 $pdo = DB::pdo();
@@ -23,24 +24,21 @@ if ($method==='GET') {
   ok($st->fetchAll());
 }
 if ($method==='POST') {
-  $b = body();
-  foreach (['task_id','predecessor_id','type'] as $r) if (!isset($b[$r])) bad("Missing $r");
-  $type = ($b['type']==='SS') ? 'SS' : 'FS';
-  $lag = (int)($b['lag_days'] ?? 0);
-  $pdo->prepare("INSERT INTO dependencies (task_id, predecessor_id, type, lag_days) VALUES (?,?,?,?)")
-      ->execute([(int)$b['task_id'], (int)$b['predecessor_id'], $type, $lag]);
-  // recalc by project
-  $p = $pdo->query("SELECT project_id FROM tasks WHERE id=".(int)$b['task_id'])->fetchColumn();
-  if ($p) (new Scheduler((int)$p))->recalc();
-  ok(['id'=>$pdo->lastInsertId()]);
+  $b=body();foreach(['task_id','predecessor_id','type']as$field)if(!isset($b[$field]))bad('Missing '.$field);
+  $q=$pdo->prepare('SELECT * FROM tasks WHERE id=?');$q->execute([(int)$b['task_id']]);$task=$q->fetch();$q->execute([(int)$b['predecessor_id']]);$previous=$q->fetch();
+  if(!$task||!$previous)bad('Activity not found',404);
+  $programme=Programmes::forTask($pdo,$task);
+  if((int)$task['project_id']!==(int)$previous['project_id']||$programme!==Programmes::forTask($pdo,$previous))bad('Dependencies cannot link different programmes or projects');
+  try{$pdo->beginTransaction();$q=$pdo->prepare('INSERT INTO dependencies(task_id,predecessor_id,type,lag_days) VALUES(?,?,?,?)');$q->execute([(int)$b['task_id'],(int)$b['predecessor_id'],$b['type']==='SS'?'SS':'FS',(int)($b['lag_days']??0)]);$id=$pdo->lastInsertId();(new Scheduler((int)$task['project_id'],$programme))->recalc();$pdo->commit();}
+  catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();bad('Dependency could not be saved. No changes were applied.');}
+  ok(['id'=>$id]);
 }
 if ($method==='DELETE') {
-  $id = (int)($_GET['id'] ?? 0);
-  if (!$id) bad('id required');
-  $tid = $pdo->query("SELECT task_id FROM dependencies WHERE id=$id")->fetchColumn();
-  $pdo->prepare("DELETE FROM dependencies WHERE id=?")->execute([$id]);
-  $p = $tid ? $pdo->query("SELECT project_id FROM tasks WHERE id=".(int)$tid)->fetchColumn() : null;
-  if ($p) (new Scheduler((int)$p))->recalc();
+  $id=(int)($_GET['id']??0);if(!$id)bad('id required');
+  $q=$pdo->prepare('SELECT t.* FROM dependencies d JOIN tasks t ON t.id=d.task_id WHERE d.id=?');$q->execute([$id]);$task=$q->fetch();if(!$task)bad('Dependency not found',404);
+  try{$pdo->beginTransaction();$pdo->prepare('DELETE FROM dependencies WHERE id=?')->execute([$id]);(new Scheduler((int)$task['project_id'],Programmes::forTask($pdo,$task)))->recalc();$pdo->commit();}
+  catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();bad('Dependency could not be removed. No changes were applied.');}
   ok(['deleted'=>true]);
 }
 bad('Unsupported method',405);
+

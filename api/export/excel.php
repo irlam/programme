@@ -3,9 +3,11 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 
 use App\Config\DB;
+use App\Lib\Programmes;
 
 $pdo = DB::pdo();
 $project = (int)($_GET['project'] ?? 1);
+$scope=Programmes::request($pdo,$project);
 
 // Load project start for offsets if needed
 $proj = $pdo->prepare("SELECT start_date FROM projects WHERE id=?"); $proj->execute([$project]);
@@ -16,7 +18,7 @@ $sql = "SELECT t.*, c.name AS contractor, c.colour, a.block, a.floor, a.unit, a.
         FROM tasks t
         LEFT JOIN contractors c ON c.id = t.contractor_id
         JOIN apartments a ON a.id=t.apartment_id
-        WHERE t.project_id = ?
+        WHERE t.project_id = ? AND $scope
         ORDER BY t.start_date IS NULL, t.start_date, t.id";
 $st = $pdo->prepare($sql); $st->execute([$project]);
 $rows = $st->fetchAll();
@@ -91,3 +93,4 @@ foreach ($rows as $row) {
   ]);
 }
 fclose($out);
+

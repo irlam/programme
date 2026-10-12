@@ -10,7 +10,7 @@
   const format = value => value ? date(value).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'}) : 'Not scheduled';
   const statusNames = {planned:'Planned', in_progress:'Scheduled today', delayed:'Overdue', complete:'Complete', unscheduled:'Unscheduled'};
   const initialView = document.body.dataset.initialView || 'timeline';
-  const state = {view:initialView, tasks:[], projects:[], contractors:[], project:null, today:iso(new Date()), user:null, csrf:null, editing:null, pendingMove:null, loaded:false, editable:false, request:0};
+  const state = {view:initialView, tasks:[], projects:[], contractors:[], project:null, programme:null, programmes:[], today:iso(new Date()), user:null, csrf:null, editing:null, pendingMove:null, loaded:false, editable:false, request:0};
   const params = new URLSearchParams(location.search);
   if (['timeline','list','lookahead'].includes(params.get('view'))) state.view = params.get('view');
   if (/^\d+$/.test(params.get('project') || '')) $('project').value = params.get('project');
@@ -62,8 +62,9 @@
   function updateExports() {
     const project = state.project?.id || 1;
     const days = $('window').value, from = $('from').value, group = $('group').value === 'contractor' ? 'contractor' : 'apartment';
-    const queries = new URLSearchParams({project, days, from, group});
-    const urls = {csv:`/api/export/csv.php?project=${project}`, tasklist:`/api/export/tasklist_xlsx.php?project=${project}`, lookahead:`/api/export/lookahead_xlsx.php?${queries}`, shortterm:`/api/export/shortterm.php?${queries}`};
+    const programme=state.programme?.id||0;
+    const queries = new URLSearchParams({project, programme, days, from, group});
+    const urls = {csv:`/api/export/csv.php?project=${project}&programme=${programme}`, tasklist:`/api/export/tasklist_xlsx.php?project=${project}&programme=${programme}`, lookahead:`/api/export/lookahead_xlsx.php?${queries}`, shortterm:`/api/export/shortterm.php?${queries}`};
     document.querySelectorAll('[data-export]').forEach(a => a.href = urls[a.dataset.export]);
   }
   function updateView() {
@@ -71,7 +72,7 @@
     document.querySelectorAll('[data-nav]').forEach(a => { const active = a.dataset.nav === (state.view === 'lookahead' ? 'lookahead' : 'timeline'); a.classList.toggle('active',active); if (active) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
     $('workspace-title').textContent = state.view === 'list' ? 'Activity register' : state.view === 'lookahead' ? 'Lookahead planner' : 'Programme timeline';
     $('workspace-description').textContent = state.view === 'list' ? 'Every activity, including work still to be scheduled.' : state.view === 'lookahead' ? 'Coordinate the work ahead, one date window at a time.' : 'The detail you need. The bigger picture you want.';
-    $('page-title').textContent = state.view === 'lookahead' ? 'Make the next few weeks count.' : 'Your programme, in focus.';
+    $('page-title').textContent = state.programme?.name || (state.view === 'lookahead' ? 'Make the next few weeks count.' : 'Your programme, in focus.');
     $('breadcrumb-title').textContent = state.view === 'lookahead' ? 'Lookahead planner' : 'Construction programme';
     $('zoom').hidden = state.view === 'list'; $('baseline').closest('label').hidden = state.view === 'list';
   }
@@ -126,18 +127,25 @@
     }
     $('content').innerHTML = `<div class="timeline-scroll"><div class="timeline-grid" style="--timeline-width:${width}px;--day:${cell}px"><div class="timeline-label head">Activity / ${groupBy==='contractor'?'location':'contractor'}</div><div class="timeline-dates">${headers}</div>${rows}</div></div>`;
   }
-  async function load(projectId) {
+  async function load(projectId, programmeId) {
     const request = ++state.request;
     $('refresh').disabled = true; $('content').setAttribute('aria-busy','true');
     $('connection').innerHTML = '<i></i>Updating';
     try {
       const project = projectId || state.project?.id || requestedProject;
-      const result = await api(`/api/workspace.php${project ? '?project='+encodeURIComponent(project) : ''}`);
+      const programme=programmeId??state.programme?.id??params.get('programme')??0;
+      const query=new URLSearchParams({programme});if(project)query.set('project',project);
+      const result = await api(`/api/workspace.php?${query}`);
       if (request !== state.request) return;
-      const changed = state.project?.id !== result.project.id;
+      const changed = state.project?.id !== result.project.id || state.programme?.id !== result.programme?.id;
       state.tasks = result.tasks; state.contractors = result.contractors || []; state.projects = result.projects; state.project = result.project; state.today = result.today; state.loaded = true;
       $('project').innerHTML = state.projects.map(p=>`<option value="${Number(p.id)}">${esc(p.name)}</option>`).join('');
       $('project').value = String(state.project.id);
+      state.programmes=result.programmes||[{id:0,name:'Original programme'}];state.programme=result.programme||state.programmes[0];
+      $('programme').innerHTML=state.programmes.map(p=>`<option value="${Number(p.id)}">${esc(p.name)}</option>`).join('');$('programme').value=String(state.programme.id);
+      const selectedUrl=new URL(location.href);selectedUrl.searchParams.set('project',state.project.id);selectedUrl.searchParams.set('programme',state.programme.id);history.replaceState(null,'',selectedUrl);
+      document.querySelectorAll('a[href]').forEach(a=>{const u=new URL(a.getAttribute('href'),location.origin);if(u.origin===location.origin&&['/index.html','/lookahead.html','/analytics.html','/admin/import.html','/admin/baselines.php'].includes(u.pathname)){u.searchParams.set('project',state.project.id);u.searchParams.set('programme',state.programme.id);a.href=u.pathname+u.search;}});
+      $('page-title').textContent=state.programme.name;
       $('project-subtitle').textContent = `${state.project.name} · Plan, coordinate and track your construction programme.`;
       if(changed || !$('from').value) {
         const scheduled = state.tasks.filter(t=>t.start_date).map(t=>t.start_date).sort();
@@ -189,7 +197,7 @@
   async function writeTask(body) {
     if(!state.csrf) await auth();
     if(!state.editable) throw new Error('Sign in as an admin or planner to update the programme.');
-    return api('/api/tasks.php?action=update', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF':state.csrf},body:JSON.stringify(body)});
+    return api('/api/tasks.php?action=update&programme='+encodeURIComponent(state.programme?.id||0), {method:'POST',headers:{'Content-Type':'application/json','X-CSRF':state.csrf},body:JSON.stringify(body)});
   }
   $('task-form').addEventListener('submit',async event => {
     event.preventDefault(); if(!state.editing || !state.editable) return;
@@ -247,7 +255,8 @@
   $('block').onchange=()=>{filterOptions();render();};
   $('from').onchange=()=>{if($('from').value) render();};
   $('clear-filters').onclick=()=>{['search','block','floor','contractor','status'].forEach(id=>$(id).value='');filterOptions();render();};
-  $('project').onchange=()=>{['search','block','floor','contractor','status'].forEach(id=>$(id).value='');load($('project').value);};
+  $('project').onchange=()=>{['search','block','floor','contractor','status'].forEach(id=>$(id).value='');load($('project').value,0);};
+  $('programme').onchange=()=>{['search','block','floor','contractor','status'].forEach(id=>$(id).value='');load(state.project.id,$('programme').value);};
   $('previous').onclick=()=>{$('from').value=addDays($('from').value,-Number($('window').value));render();};
   $('next').onclick=()=>{$('from').value=addDays($('from').value,Number($('window').value));render();};
   $('today').onclick=()=>{$('from').value=state.today;render();};
@@ -265,3 +274,4 @@
   $('logout').onclick=async()=>{try{await api('/api/auth.php?action=logout',{method:'POST',headers:{'X-CSRF':state.csrf}});location.href='/login.html';}catch(err){toast(err.message);}};
   updateView(); load(); auth();
 })();
+

@@ -4,6 +4,7 @@ require __DIR__ . '/_bootstrap.php';
 
 use App\Config\DB;
 use App\Lib\Scheduler;
+use App\Lib\Programmes;
 use App\Lib\WorkingDays;
 
 header('Content-Type: application/json');
@@ -59,10 +60,12 @@ if ($action === 'update' && $method === 'POST') {
   if (!$id) bad('id required');
 
   // fetch existing (to get project/calendar)
-  $task = $pdo->prepare("SELECT id, project_id, duration_days FROM tasks WHERE id=?");
+  $task = $pdo->prepare("SELECT * FROM tasks WHERE id=?");
   $task->execute([$id]);
   $trow = $task->fetch();
   if (!$trow) bad('task not found',404);
+  $programme=Programmes::forTask($pdo,$trow);
+  if(isset($_GET['programme'])){Programmes::request($pdo,(int)$trow['project_id']);if((int)$_GET['programme']!==$programme)bad('Activity belongs to a different programme',404);}
 
   $name = trim((string)($b['name'] ?? ($b['text'] ?? '')));
   if ($name === '') bad('name required');
@@ -124,7 +127,7 @@ if ($action === 'update' && $method === 'POST') {
     }
     $args[] = $id;
     $pdo->prepare('UPDATE tasks SET '.implode(',', $set).' WHERE id=?')->execute($args);
-    (new Scheduler((int)$trow['project_id']))->recalc();
+    (new Scheduler((int)$trow['project_id'],$programme))->recalc();
     $pdo->commit();
   } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
@@ -136,3 +139,4 @@ if ($action === 'update' && $method === 'POST') {
 }
 
 bad('unknown_action', 404);
+

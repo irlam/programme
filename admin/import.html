@@ -73,11 +73,16 @@
           <input id="file" type="file" accept=".xlsx,.xlsm,.xls,.csv" />
         </div>
         <div>
-          <label>Project ID</label>
-          <input id="project" type="number" min="1" step="1" value="1" />
+          <label for="project">Project</label><select id="project"><option value="1">Loading projects…</option></select>
         </div>
       </div>
 
+      <div class="grid-2" style="margin-top:12px">
+        <div><label for="destination">Import into</label><select id="destination"><option value="new">New separate programme</option><option value="existing">Add activities to an existing programme</option></select></div>
+        <div id="new-programme"><label for="programme-name">Programme name</label><input id="programme-name" type="text" maxlength="150" placeholder="e.g. Contract Programme Rev B" /></div>
+        <div id="existing-programme" hidden><label for="programme">Existing programme</label><select id="programme"><option value="0">Original programme</option></select></div>
+      </div>
+      <p class="muted">New programmes keep their activities separate. Adding to an existing programme appends activities; it does not replace them.</p>
       <!-- Assisted detection -->
       <div class="card" style="margin-top:12px">
         <h3 style="margin:0 0 8px 0">Assisted detection (optional)</h3>
@@ -154,7 +159,7 @@
         <table id="tbl"><thead></thead><tbody></tbody></table>
       </div>
       <div class="inline" style="margin-top:12px">
-        <button class="btn" id="importBtn">Import into project</button>
+        <button class="btn" id="importBtn">Save programme</button>
         <span id="importStatus" class="muted status"></span>
       </div>
     </div>
@@ -162,6 +167,18 @@
 
 <script>
 let __preview = null;
+const context=new URLSearchParams(location.search);
+async function catalogue(){
+ const project=document.getElementById('project').value||context.get('project')||'1';
+ const response=await fetch('/api/programmes.php?project='+encodeURIComponent(project));const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'Sign in before importing');
+ document.getElementById('project').innerHTML=data.projects.map(p=>`<option value="${Number(p.id)}">${escapeHtml(p.name)}</option>`).join('');document.getElementById('project').value=String(data.project);
+ document.getElementById('programme').innerHTML=data.programmes.map(p=>`<option value="${Number(p.id)}">${escapeHtml(p.name)}</option>`).join('');
+ if(data.programmes.some(p=>String(p.id)===context.get('programme')))document.getElementById('programme').value=context.get('programme');
+}
+document.getElementById('destination').onchange=()=>{const create=document.getElementById('destination').value==='new';document.getElementById('new-programme').hidden=!create;document.getElementById('existing-programme').hidden=create;};
+document.getElementById('project').onchange=()=>{__preview=null;document.getElementById('preview').style.display='none';catalogue().catch(e=>document.getElementById('status').textContent=e.message);};
+document.getElementById('file').onchange=()=>{__preview=null;document.getElementById('preview').style.display='none';const file=document.getElementById('file').files[0];if(file)document.getElementById('programme-name').value=file.name.replace(/\.[^.]+$/,'').slice(0,150);};
+(async()=>{if(context.get('project'))document.getElementById('project').innerHTML=`<option value="${Number(context.get('project'))||1}">Loading project…</option>`;await catalogue();})().catch(e=>document.getElementById('status').textContent=e.message);
 let __debugOn = false;
 
 document.getElementById('debugBtn').onclick = () => {
@@ -242,11 +259,16 @@ function renderPreview(j){
 
 document.getElementById('importBtn').onclick = async () => {
   const status = document.getElementById('importStatus');
+  if(document.getElementById('importBtn').disabled)return;
   status.textContent = 'Importing…';
   if (!__preview) { status.textContent = 'No preview'; return; }
 
   const payload = {
     project: document.getElementById('project').value || '1',
+    destination:document.getElementById('destination').value,
+    programme_name:document.getElementById('programme-name').value.trim(),
+    programme:document.getElementById('programme').value||'0',
+    filename:document.getElementById('file').files[0]?.name||'',
     ignore_weekends: document.getElementById('ignoreWeekends').checked,
     split_spans: document.getElementById('splitSpans').checked,
     auto_fs: document.getElementById('autoFS').checked,
@@ -263,6 +285,8 @@ document.getElementById('importBtn').onclick = async () => {
     mapping: __preview.mapping || {}
   };
 
+  if(payload.destination==='new'&&!payload.programme_name){status.textContent='Enter a programme name.';return;}
+  document.getElementById('importBtn').disabled=true;
   try {
     const who = await (await fetch('/api/auth.php?action=whoami')).json();
     const res = await fetch('/api/import/commit.php', {
@@ -275,13 +299,14 @@ document.getElementById('importBtn').onclick = async () => {
       status.textContent = 'Failed: ' + (j && j.error ? j.error : 'server error');
       return;
     }
-    status.innerHTML = 'Imported. <a href="/">Open Gantt</a>';
+    status.replaceChildren(document.createTextNode(`${j.imported} activities imported. `));const link=document.createElement('a');link.href='/index.html?'+new URLSearchParams({project:j.project,programme:j.programme});link.textContent='Open '+j.programme_name;status.append(link);await catalogue();
   } catch (e) {
     status.textContent = 'Failed: ' + String(e);
-  }
+  } finally {document.getElementById('importBtn').disabled=false;}
 };
 
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 </script>
 </body>
 </html>
+

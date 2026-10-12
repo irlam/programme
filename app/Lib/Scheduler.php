@@ -5,18 +5,21 @@ use App\Config\DB;
 use DateTimeImmutable;
 use RuntimeException;
 final class Scheduler {
-  public function __construct(private int $projectId) {}
+  public function __construct(private int $projectId, private ?int $programme=null) {}
   public function recalc(): void {
     $pdo = DB::pdo();
+    if($this->programme===null){foreach(Programmes::catalogue($pdo,$this->projectId)as$programme)(new self($this->projectId,$programme['id']))->recalc();return;}
     $proj = $pdo->prepare("SELECT start_date, calendar_id FROM projects WHERE id=?");
     $proj->execute([$this->projectId]);
     $p = $proj->fetch();
     if (!$p) throw new RuntimeException("Project not found");
     $projStart = new DateTimeImmutable($p['start_date']);
     $wd = new WorkingDays((int)$p['calendar_id']);
-    $tasksStmt = $pdo->prepare("SELECT * FROM tasks WHERE project_id=? ORDER BY id");
+    $scope=$this->programme===null?'1=1':Programmes::condition($pdo,$this->projectId,$this->programme);
+    $tasksStmt = $pdo->prepare("SELECT * FROM tasks t WHERE project_id=? AND $scope ORDER BY id");
     $tasksStmt->execute([$this->projectId]);
     $tasks = $tasksStmt->fetchAll();
+    if($this->programme!==null&&$this->programme>0){$starts=[];foreach($tasks as$task)foreach(['constraint_start','start_date']as$key)if(!empty($task[$key]))$starts[]=$task[$key];if($starts)$projStart=new DateTimeImmutable(min($starts));}
     $byId = [];
     foreach ($tasks as $t) $byId[(int)$t['id']] = $t;
     $deps = $pdo->prepare("SELECT d.*, t.project_id as t_project FROM dependencies d JOIN tasks t ON t.id=d.task_id WHERE t.project_id=?");
@@ -24,6 +27,8 @@ final class Scheduler {
     $preds = []; $succs = [];
     while ($row = $deps->fetch()) {
       $tid = (int)$row['task_id']; $pid = (int)$row['predecessor_id'];
+      if(!isset($byId[$tid]))continue;
+      if(!isset($byId[$pid]))throw new RuntimeException('Dependencies cannot link different programmes or projects');
       $preds[$tid][] = $row; $succs[$pid][] = $tid;
     }
     $inDeg = []; foreach ($byId as $id => $_) $inDeg[$id] = 0;
@@ -92,3 +97,4 @@ final class Scheduler {
     }
   }
 }
+

@@ -4,6 +4,7 @@ declare(strict_types=1);
 require __DIR__ . '/../_bootstrap.php';
 
 use App\Config\DB;
+use App\Lib\Programmes;
 
 function phpss_load(): bool {
   $root = dirname(__DIR__, 2);
@@ -19,10 +20,11 @@ $from    = $_GET['from'] ?? null;
 $group   = $_GET['group'] ?? 'apartment'; // apartment | contractor
 
 $pdo = DB::pdo();
+$scope=Programmes::request($pdo,$project);
 
 // window
 if (!$from) {
-  $from = (string)$pdo->query("SELECT COALESCE(MIN(start_date), CURDATE()) FROM tasks WHERE project_id=".(int)$project)->fetchColumn();
+  $from = (string)$pdo->query("SELECT COALESCE(MIN(start_date), CURDATE()) FROM tasks t WHERE project_id=".(int)$project." AND ".$scope)->fetchColumn();
   if (!$from) $from = date('Y-m-d');
 }
 $start = new DateTimeImmutable($from);
@@ -41,7 +43,7 @@ $sql = "SELECT t.*, c.name contractor, c.colour,
         FROM tasks t
         LEFT JOIN contractors c ON c.id=t.contractor_id
         LEFT JOIN apartments a ON a.id=t.apartment_id
-        WHERE t.project_id=? AND t.start_date <= ? AND t.finish_date >= ?
+        WHERE t.project_id=? AND $scope AND t.start_date <= ? AND t.finish_date >= ?
         ORDER BY a.block, a.floor, a.unit, t.start_date, t.id";
 $st = $pdo->prepare($sql);
 $st->execute([$project, $winEnd, $winStart]);
@@ -160,3 +162,4 @@ header('Content-Disposition: attachment; filename="lookahead_grid_project'.$proj
 $writer = new Xlsx($ss);
 $writer->save('php://output');
 exit;
+

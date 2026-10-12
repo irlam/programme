@@ -4,6 +4,7 @@ declare(strict_types=1);
 require __DIR__ . '/../_bootstrap.php';
 
 use App\Config\DB;
+use App\Lib\Programmes;
 
 function phpss_load(): bool {
   // Try Composer first, then manual
@@ -21,6 +22,7 @@ function phpss_load(): bool {
 $project = (int)($_GET['project'] ?? 1);
 
 $pdo = DB::pdo();
+$scope=Programmes::request($pdo,$project);
 $sql = "SELECT 
           t.id, t.name, t.operatives, t.duration_days, t.start_date, t.finish_date, t.zone, t.notes,
           c.name AS contractor,
@@ -28,7 +30,7 @@ $sql = "SELECT
         FROM tasks t
         LEFT JOIN contractors c ON c.id = t.contractor_id
         LEFT JOIN apartments a  ON a.id = t.apartment_id
-        WHERE t.project_id = ?
+        WHERE t.project_id = ? AND $scope
         ORDER BY a.block, a.floor, a.unit, t.start_date, t.id";
 $st = $pdo->prepare($sql);
 $st->execute([$project]);
@@ -101,3 +103,4 @@ header('Content-Disposition: attachment; filename="programme_tasklist_project'.$
 $writer = new Xlsx($ss);
 $writer->save('php://output');
 exit;
+

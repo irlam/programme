@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 use App\Config\DB;
+use App\Lib\Programmes;
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 $pdo = DB::pdo();
@@ -10,7 +11,9 @@ $projectId = max(1, (int)($_GET['project'] ?? ($projects[0]['id'] ?? 1)));
 $project = null;
 foreach ($projects as $item) if ((int)$item['id'] === $projectId) $project = $item;
 if (!$project) { http_response_code(404); echo json_encode(['ok'=>false, 'error'=>'Project not found']); exit; }
-$stmt = $pdo->prepare('SELECT t.*, c.name AS contractor, c.colour, a.block, a.floor, a.unit, a.type AS apt_type FROM tasks t LEFT JOIN contractors c ON c.id=t.contractor_id LEFT JOIN apartments a ON a.id=t.apartment_id WHERE t.project_id=? ORDER BY a.block, a.floor, a.unit, t.start_date, t.id');
+$scope=Programmes::request($pdo,$projectId);
+$programme=Programmes::selected($pdo,$projectId,$_GET['programme']??'0');
+$stmt = $pdo->prepare("SELECT t.*, c.name AS contractor, c.colour, a.block, a.floor, a.unit, a.type AS apt_type FROM tasks t LEFT JOIN contractors c ON c.id=t.contractor_id LEFT JOIN apartments a ON a.id=t.apartment_id WHERE t.project_id=? AND $scope ORDER BY a.block, a.floor, a.unit, t.start_date, t.id");
 $stmt->execute([$projectId]);
 $tasks = $stmt->fetchAll();
 $contractors = $pdo->query('SELECT id, name, colour FROM contractors ORDER BY name')->fetchAll();
@@ -23,4 +26,5 @@ foreach ($tasks as &$task) {
     $task['status'] = $task['percent_complete'] >= 100 ? 'complete' : (!$task['start_date'] || !$task['finish_date'] ? 'unscheduled' : ($task['finish_date'] < $today ? 'delayed' : ($task['start_date'] <= $today ? 'in_progress' : 'planned')));
 }
 unset($task);
-echo json_encode(['ok'=>true, 'projects'=>$projects, 'project'=>$project, 'today'=>$today, 'tasks'=>$tasks, 'contractors'=>$contractors]);
+echo json_encode(['ok'=>true, 'projects'=>$projects, 'project'=>$project, 'today'=>$today, 'programmes'=>Programmes::catalogue($pdo,$projectId), 'programme'=>$programme, 'tasks'=>$tasks, 'contractors'=>$contractors]);
+

@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_bootstrap.php';
 use App\Config\DB;
+use App\Lib\Programmes;
+use App\Lib\WorkingDays;
 
 function json_out(int $status, array $data): void {
   http_response_code($status);
@@ -15,6 +17,10 @@ function require_csrf(): void {
   $hdr = $_SERVER['HTTP_X_CSRF'] ?? '';
   $ok  = isset($_SESSION['csrf']) && is_string($_SESSION['csrf']) && hash_equals($_SESSION['csrf'], $hdr);
   if (!$ok) json_out(403, ['ok'=>false, 'error'=>'forbidden']);
+}
+function import_date(string $value):string{
+  $value=trim($value);if(preg_match('~^(\d{1,2})/(\d{1,2})/(\d{4})$~',$value,$m))$value=sprintf('%04d-%02d-%02d',$m[3],$m[2],$m[1]);
+  $date=DateTimeImmutable::createFromFormat('!Y-m-d',$value);if(!$date||$date->format('Y-m-d')!==$value)throw new RuntimeException('Invalid activity date; use YYYY-MM-DD or DD/MM/YYYY');return $value;
 }
 function wd(string $a,string $b): int {
   $A=new DateTimeImmutable($a); $B=new DateTimeImmutable($b);
@@ -52,6 +58,8 @@ function ensure_apartment(PDO $pdo, int $projectId, string $section): int {
   return (int)$pdo->lastInsertId();
 }
 
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') json_out(405,['ok'=>false,'error'=>'POST only']);
+require_role(['admin','planner']);
 require_csrf();
 
 try {
@@ -65,13 +73,24 @@ try {
   if ($projectId<=0) json_out(400,['ok'=>false,'error'=>'project required']);
   if (!is_array($tasksIn) || !$tasksIn) json_out(400,['ok'=>false,'error'=>'no tasks']);
 
-  $pdo = DB::pdo(); $pdo->beginTransaction();
+  $pdo = DB::pdo();
+  $check=$pdo->prepare('SELECT id FROM projects WHERE id=?');$check->execute([$projectId]);
+  if(!$check->fetchColumn())json_out(404,['ok'=>false,'error'=>'Project not found']);
+  $destination=$payload['destination']??'existing';
+  if(!in_array($destination,['new','existing'],true))json_out(400,['ok'=>false,'error'=>'Invalid import destination']);
+  if($destination==='existing')$programme=Programmes::selected($pdo,$projectId,$payload['programme']??'0');
+  $pdo->beginTransaction();
+  if($destination==='new'){
+    $programmeId=Programmes::create($pdo,$projectId,(string)($payload['programme_name']??''),(string)($payload['filename']??''),(int)(current_user()['id']??0));
+    $programme=Programmes::selected($pdo,$projectId,$programmeId);
+  }else{$programmeId=$programme['id'];}
+
 
   $insTask = $pdo->prepare("
     INSERT INTO tasks
-      (project_id, apartment_id, name, contractor_id, operatives, duration_days, start_date, finish_date, zone, notes)
+      (project_id, apartment_id, name, contractor_id, operatives, duration_days, start_date, finish_date, zone, notes, source_import_id, constraint_start)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ");
 
   $sections = [];
@@ -85,20 +104,24 @@ try {
     $colHex = (string)($t['colour'] ?? '');
 
     if ($name==='' || $start==='' || $finish==='') continue;
+    $start=import_date($start);$finish=import_date($finish);if($finish<$start)throw new RuntimeException('Finish cannot be before start');
 
     $aptId = ensure_apartment($pdo, $projectId, $sec);
     $cid   = ensure_contractor($pdo, $cont, $colHex, $useColours);
 
     $dur = isset($t['duration_days']) ? (int)$t['duration_days'] : wd($start,$finish);
     if ($dur <= 0) $dur = 1;
+    if($programmeId){$q=$pdo->prepare('SELECT calendar_id FROM projects WHERE id=?');$q->execute([$projectId]);$dur=(new WorkingDays((int)$q->fetchColumn()))->diffWorkingDays(new DateTimeImmutable($start),new DateTimeImmutable($finish));}
     $ops = isset($t['operatives']) ? max(0,(int)$t['operatives']) : 1;
 
-    $insTask->execute([$projectId,$aptId,$name,$cid,$ops,$dur,$start,$finish,$sec?:null,null]);
+    $insTask->execute([$projectId,$aptId,$name,$cid,$ops,$dur,$start,$finish,$sec?:null,null,$programmeId?:null,$start]);
     $id = (int)$pdo->lastInsertId();
     $inserted[] = $id;
 
     $sections[$sec ?: 'Imported Lookahead'][] = ['id'=>$id,'start'=>$start];
   }
+
+  if(!$inserted)throw new RuntimeException('No valid activities were imported');
 
   // Auto FS
   if ($autoFS && $sections) {
@@ -113,7 +136,7 @@ try {
   if ($baseline && $inserted) {
     try {
       $pdo->prepare("INSERT INTO baselines (project_id, label, created_at) VALUES (?,?, NOW())")
-          ->execute([$projectId, 'Import – '.date('Y-m-d H:i')]);
+          ->execute([$projectId, ($programmeId?'[programme:'.$programmeId.'] ':'').'Import – '.date('Y-m-d H:i')]);
     } catch (\Throwable $e) { /* ignore */ }
     for ($i=0; $i<count($inserted); $i+=500) {
       $ids = array_slice($inserted,$i,500);
@@ -124,9 +147,10 @@ try {
   }
 
   $pdo->commit();
-  json_out(200, ['ok'=>true,'imported'=>count($inserted)]);
+  json_out(200, ['ok'=>true,'imported'=>count($inserted),'project'=>$projectId,'programme'=>$programmeId,'programme_name'=>$programme['name']]);
 }
 catch (\Throwable $e) {
   if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
-  json_out(500, ['ok'=>false,'error'=>$e->getMessage()]);
+  json_out(400, ['ok'=>false,'error'=>$e instanceof PDOException ? 'Import could not be saved. No changes were applied.' : $e->getMessage()]);
 }
+

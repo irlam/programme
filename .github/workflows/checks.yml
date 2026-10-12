@@ -11,7 +11,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo, pdo_sqlite, curl, ctype
+          extensions: pdo, pdo_mysql, pdo_sqlite, curl, ctype
       - name: PHP syntax
         run: find app api bin tests admin tools -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Private configuration
@@ -23,3 +23,38 @@ jobs:
         run: python3 tests/maintenance-web-guards.py
       - name: Schedule regressions
         run: python3 tests/schedule_regression.py
+
+      - name: Named programme import and scope regression
+        run: python3 tests/programmes.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Workspace DOM regression
+        run: |
+          npm install --prefix "$RUNNER_TEMP/programme-dom" jsdom@30.1.2 --no-audit --no-fund
+          PROGRAMME_TEST_JSDOM="$RUNNER_TEMP/programme-dom/node_modules/jsdom" node tests/workspace_dom.cjs
+  mysql-programmes:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: programme_catalogue_test
+          MYSQL_USER: programme_fixture
+          MYSQL_PASSWORD: fixture-only-password
+          MYSQL_ROOT_PASSWORD: fixture-only-root
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pfixture-only-root"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql
+      - name: Native MySQL programme catalogue
+        env:
+          PROGRAMME_MYSQL_FIXTURE: '1'
+        run: php tests/programmes-mysql.php
+

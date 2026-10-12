@@ -119,6 +119,7 @@
   </div>
 
   <!-- Your existing UI -->
+  <label for="baseline-programme">Programme</label><select id="baseline-programme"><option value="0">Original programme</option></select>
   <div id="me" style="opacity:.85;margin-bottom:8px"></div>
   <div>
     <input id="label" placeholder="Baseline label (optional)">
@@ -163,14 +164,14 @@
 })();
 
 /* Your existing JS (unchanged) */
-let CSRF=null, ME=null;
+let CSRF=null, ME=null;const context=new URLSearchParams(location.search);const project=Number(context.get('project'))||1;const scope=()=>new URLSearchParams({project,programme:document.getElementById('baseline-programme').value});
 async function who(){
   const j=await (await fetch('/api/auth.php?action=whoami')).json();
   ME=j.user; CSRF=j.csrf;
   document.getElementById('me').textContent = ME? `Signed in as ${ME.name} (${ME.role})`:'Not signed in';
 }
 async function list(){
-  const j=await (await fetch('/api/baselines.php?project=1')).json();
+  const j=await (await fetch('/api/baselines.php?'+scope())).json();
   const ul=listEl; ul.innerHTML='';
   (j.data||[]).forEach(b=>{
     const li=document.createElement('li');
@@ -179,7 +180,7 @@ async function list(){
   });
 }
 async function variance(){
-  const j=await (await fetch('/api/analytics.php?project=1&type=variance')).json();
+  const j=await (await fetch('/api/analytics.php?'+scope()+'&type=variance')).json();
   const tb=document.querySelector('#tbl tbody'); tb.innerHTML='';
   (j.rows||j.data?.rows||[]).forEach(r=>{
     const tr=document.createElement('tr');
@@ -197,13 +198,15 @@ async function setBaseline(){
   const r=await fetch('/api/baselines.php',{
     method:'POST',
     headers:{'Content-Type':'application/json','X-CSRF':CSRF},
-    body:JSON.stringify({project_id:1,label})
+    body:JSON.stringify({project_id:project,programme:document.getElementById('baseline-programme').value,label})
   });
   if(!r.ok) return alert('Failed');
   await list(); await variance(); alert('Baseline captured');
 }
 const listEl = document.getElementById('list');
-(async()=>{ await who(); await list(); await variance(); })();
+document.getElementById('baseline-programme').onchange=async()=>{await list();await variance();};
+(async()=>{await who();const d=await(await fetch('/api/programmes.php?project='+project)).json();if(!d.ok){document.getElementById('me').textContent=d.error||'Programme unavailable';return;}const picker=document.getElementById('baseline-programme');picker.replaceChildren(...d.programmes.map(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;return o;}));if(d.programmes.some(p=>String(p.id)===context.get('programme')))picker.value=context.get('programme');await list();await variance();})();
 </script>
 </body>
 </html>
+

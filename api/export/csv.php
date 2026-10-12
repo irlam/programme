@@ -2,9 +2,11 @@
 declare(strict_types=1);
 require __DIR__ . '/../_bootstrap.php';
 use App\Config\DB;
+use App\Lib\Programmes;
 
 $pdo = DB::pdo();
 $project = (int)($_GET['project'] ?? 1);
+$scope=Programmes::request($pdo,$project);
 $block   = $_GET['block'] ?? null;
 $floor   = $_GET['floor'] ?? null;
 $unit    = $_GET['unit'] ?? null;
@@ -13,7 +15,7 @@ $from = $_GET['from'] ?? null;
 $to   = $_GET['to'] ?? null;
 
 $q = [];
-$w = ["t.project_id = ?"]; $q[] = $project;
+$w = ["t.project_id = ?", $scope]; $q[] = $project;
 if ($block !== null && $block !== '') { $w[]="a.block = ?"; $q[]=$block; }
 if ($floor !== null && $floor !== '') { $w[]="a.floor = ?"; $q[]=$floor; }
 if ($unit  !== null && $unit  !== '') { $w[]="a.unit = ?";  $q[]=$unit; }
@@ -41,3 +43,4 @@ while ($r = $st->fetch()) {
   fputcsv($out, [$r['block'],$r['floor'],$r['unit'],$r['apt_type'],$r['task'],$r['contractor'],$r['operatives'],$r['duration_days'],$r['start_date'],$r['finish_date'],$r['zone']]);
 }
 fclose($out);
+

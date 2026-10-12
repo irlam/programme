@@ -24,7 +24,7 @@
   async function load(){
     const seq=++request,p=$('report-project').value;$('report-refresh').disabled=true;$('report-status').textContent='Loading reports…';
     const types=['workforce','tight','throughput','variance'];
-    const results=await Promise.allSettled(types.map(type=>get(`/api/analytics.php?project=${encodeURIComponent(p)}&type=${type}`)));
+    const results=await Promise.allSettled(types.map(type=>get(`/api/analytics.php?project=${encodeURIComponent(p)}&programme=${encodeURIComponent($('report-programme').value)}&type=${type}`)));
     if(seq!==request)return;
     const failed=[];
     results.forEach((result,i)=>{
@@ -38,6 +38,11 @@
     });
     $('report-status').textContent=failed.length?`Could not load: ${failed.join(', ')}. Use Refresh to try again.`:'';$('report-refresh').disabled=false;
   }
-  $('report-project').onchange=load;$('report-refresh').onclick=load;
-  (async()=>{try{const d=await get('/api/workspace.php');$('report-project').innerHTML=d.projects.map(p=>`<option value="${Number(p.id)}">${esc(p.name)}</option>`).join('');$('report-project').value=String(d.project.id);await load();}catch(err){$('report-status').textContent=err.message;}})();
+  $('report-project').onchange=()=>catalogue(0);$('report-programme').onchange=()=>load();$('report-refresh').onclick=load;
+  async function catalogue(programme){
+    const query=new URLSearchParams({programme:programme??new URLSearchParams(location.search).get('programme')??0});
+    const project=/^\d+$/.test($('report-project').value)?$('report-project').value:new URLSearchParams(location.search).get('project');if(project&&/^\d+$/.test(project))query.set('project',project);
+    try{const d=await get('/api/workspace.php?'+query);$('report-project').innerHTML=d.projects.map(p=>`<option value="${Number(p.id)}">${esc(p.name)}</option>`).join('');$('report-project').value=String(d.project.id);$('report-programme').innerHTML=(d.programmes||[{id:0,name:'Original programme'}]).map(p=>`<option value="${Number(p.id)}">${esc(p.name)}</option>`).join('');$('report-programme').value=String(d.programme?.id||0);await load();}catch(err){$('report-status').textContent=err.message;}
+  }
+  catalogue();
 })();

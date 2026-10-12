@@ -3,6 +3,7 @@ declare(strict_types=1);
 require __DIR__ . '/../_bootstrap.php';
 
 use App\Config\DB;
+use App\Lib\Programmes;
 use App\Lib\WorkingDays;
 
 $debug = isset($_GET['debug']) && $_GET['debug'] == '1';
@@ -18,6 +19,7 @@ register_shutdown_function(function() use ($debug) {
 
 $pdo     = DB::pdo();
 $project = (int)($_GET['project'] ?? 1);
+$scope=Programmes::request($pdo,$project);
 $days    = max(7, (int)($_GET['days'] ?? 14));
 $group   = ($_GET['group'] ?? 'apartment');
 $from    = $_GET['from'] ?? date('Y-m-d');
@@ -28,6 +30,7 @@ $proj = $pdo->prepare("SELECT start_date, calendar_id, name FROM projects WHERE 
 $proj->execute([$project]);
 $p = $proj->fetch();
 if (!$p) { http_response_code(404); exit('Project not found'); }
+$p['name'].=' · '.Programmes::selected($pdo,$project,$_GET['programme']??'0')['name'];
 
 $wd = new WorkingDays((int)$p['calendar_id']);
 $start = new DateTimeImmutable($from);
@@ -46,7 +49,7 @@ $sql = "SELECT t.*, c.name contractor, c.colour,
         FROM tasks t
         LEFT JOIN contractors c ON c.id=t.contractor_id
         JOIN apartments a ON a.id=t.apartment_id
-        WHERE t.project_id=? AND t.start_date <= ? AND t.finish_date >= ?
+        WHERE t.project_id=? AND $scope AND t.start_date <= ? AND t.finish_date >= ?
         ORDER BY a.block, a.floor, a.unit, t.start_date, t.id";
 $st = $pdo->prepare($sql);
 $st->execute([$project, $winEnd, $winStart]);

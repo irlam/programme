@@ -3,18 +3,20 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 
 use App\Config\DB;
+use App\Lib\Programmes;
 use App\Lib\WorkingDays;
 
 header('Content-Type: application/json');
 
 $pdo = DB::pdo();
 $project = (int)($_GET['project'] ?? 1);
+$scope=Programmes::request($pdo,$project);
 $type = $_GET['type'] ?? 'workforce';
 
 $calId = (int)$pdo->query("SELECT calendar_id FROM projects WHERE id=$project")->fetchColumn();
 $wd = new WorkingDays($calId);
 
-$st = $pdo->prepare("SELECT t.*, c.name contractor FROM tasks t LEFT JOIN contractors c ON c.id=t.contractor_id WHERE t.project_id=?");
+$st = $pdo->prepare("SELECT t.*, c.name contractor FROM tasks t LEFT JOIN contractors c ON c.id=t.contractor_id WHERE t.project_id=? AND $scope");
 $st->execute([$project]);
 $all = $st->fetchAll();
 
